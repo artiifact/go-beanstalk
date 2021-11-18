@@ -1,5 +1,7 @@
 # Go Beanstalk
 
+[![codecov](https://codecov.io/gh/IvanLutokhin/go-beanstalk/branch/master/graph/badge.svg)](https://codecov.io/gh/IvanLutokhin/go-beanstalk)
+
 Go client for [beanstalkd](https://beanstalkd.github.io).
 
 ## Installation
