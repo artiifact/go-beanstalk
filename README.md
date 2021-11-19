@@ -1,6 +1,8 @@
 # Go Beanstalk
 
+[![Build Status](https://github.com/IvanLutokhin/go-beanstalk/workflows/Test/badge.svg)](https://github.com/IvanLutokhin/go-beanstalk/actions?query=workflow%3ATest)
 [![codecov](https://codecov.io/gh/IvanLutokhin/go-beanstalk/branch/master/graph/badge.svg)](https://codecov.io/gh/IvanLutokhin/go-beanstalk)
+[![Go Reference](https://pkg.go.dev/badge/github.com/IvanLutokhin/go-beanstalk.svg)](https://pkg.go.dev/github.com/IvanLutokhin/go-beanstalk)
 
 Go client for [beanstalkd](https://beanstalkd.github.io).
 
