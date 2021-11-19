@@ -1,0 +1,39 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      -
+        name: Checkout source code
+        uses: actions/checkout@v2
+      -
+        name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+      -
+        name: Test
+        run: go test -v -race -cover -covermode=atomic -coverprofile=coverage ./...
+      -
+        name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage
+          fail_ci_if_error: true
