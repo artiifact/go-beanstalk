@@ -48,19 +48,35 @@ fmt.Println(job.Data) // output job data
 
 Pool:
 ```go
-p, err := beanstalk.NewDefaultPool("127.0.0.1:11300", 5, 10)
+p, err := beanstalk.NewDefaultPool("127.0.0.1:11300", 5, false)
 if err != nil {
 	panic(err)
 }
 
+// establish connections
+if err = p.Open(); err != nil {
+	panic(err)
+}
+
+// retrieve connection
 c, err := p.Get()
 if err != nil {
 	panic(err)
 }
 
 // use client
+stats, err := c.Stats()
+if err != nil {
+	panic(err)
+}
 
+// return connection
 if err = p.Put(c); err != nil {
+	panic(err)
+}
+
+// close connections
+if err = p.Close(); err != nil {
 	panic(err)
 }
 ```
