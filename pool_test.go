@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-func newMockPool(capacity int, open bool) (*Pool, error) {
-	return NewPool(func() (*Client, error) { return NewClient(NewMockConn(nil, nil)), nil }, capacity, open)
+func newMockPool(capacity int, open bool) (Pool, error) {
+	return NewPool(func() (Client, error) { return NewClient(NewMockConn(nil, nil)), nil }, capacity, open)
 }
 
 func TestPool_Get(t *testing.T) {
