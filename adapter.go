@@ -3,11 +3,11 @@ package beanstalk
 import "net/http"
 
 type HTTPHandlerAdapter struct {
-	pool    *Pool
+	pool    Pool
 	handler Handler
 }
 
-func NewHTTPHandlerAdapter(pool *Pool, handler Handler) *HTTPHandlerAdapter {
+func NewHTTPHandlerAdapter(pool Pool, handler Handler) *HTTPHandlerAdapter {
 	return &HTTPHandlerAdapter{
 		pool:    pool,
 		handler: handler,

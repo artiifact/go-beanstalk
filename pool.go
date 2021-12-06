@@ -5,13 +5,21 @@ import (
 	"sync/atomic"
 )
 
-type Pool struct {
-	newClient func() (*Client, error)
-	clients   chan *Client
+type Pool interface {
+	Open() error
+	Close() error
+	Get() (Client, error)
+	Put(client Client) error
+	Len() int
+}
+
+type pool struct {
+	newClient func() (Client, error)
+	clients   chan Client
 	closed    int32
 }
 
-func NewPool(newClient func() (*Client, error), capacity int, open bool) (*Pool, error) {
+func NewPool(newClient func() (Client, error), capacity int, open bool) (Pool, error) {
 	if newClient == nil {
 		return nil, errors.New("beanstalk: pool: factory function is nil")
 	}
@@ -20,9 +28,9 @@ func NewPool(newClient func() (*Client, error), capacity int, open bool) (*Pool,
 		return nil, errors.New("beanstalk: pool: capacity should be greater than or equal to 1")
 	}
 
-	p := &Pool{
+	p := &pool{
 		newClient: newClient,
-		clients:   make(chan *Client, capacity),
+		clients:   make(chan Client, capacity),
 		closed:    1,
 	}
 
@@ -35,15 +43,15 @@ func NewPool(newClient func() (*Client, error), capacity int, open bool) (*Pool,
 	return p, nil
 }
 
-func NewDefaultPool(address string, capacity int, open bool) (*Pool, error) {
-	return NewPool(func() (*Client, error) { return Dial(address) }, capacity, open)
+func NewDefaultPool(address string, capacity int, open bool) (Pool, error) {
+	return NewPool(func() (Client, error) { return Dial(address) }, capacity, open)
 }
 
-func (p *Pool) IsClosed() bool {
+func (p *pool) IsClosed() bool {
 	return atomic.LoadInt32(&p.closed) == 1
 }
 
-func (p *Pool) Open() error {
+func (p *pool) Open() error {
 	if !p.IsClosed() {
 		return errors.New("beanstalk: pool: already opened")
 	}
@@ -62,7 +70,7 @@ func (p *Pool) Open() error {
 	return nil
 }
 
-func (p *Pool) Close() error {
+func (p *pool) Close() error {
 	if p.IsClosed() {
 		return errors.New("beanstalk: pool: already closed")
 	}
@@ -78,7 +86,7 @@ func (p *Pool) Close() error {
 	return nil
 }
 
-func (p *Pool) Get() (*Client, error) {
+func (p *pool) Get() (Client, error) {
 	if p.IsClosed() {
 		return nil, errors.New("beanstalk: pool: closed")
 	}
@@ -92,7 +100,7 @@ func (p *Pool) Get() (*Client, error) {
 	}
 }
 
-func (p *Pool) Put(client *Client) error {
+func (p *pool) Put(client Client) error {
 	if p.IsClosed() {
 		return errors.New("beanstalk: pool: closed")
 	}
@@ -106,6 +114,6 @@ func (p *Pool) Put(client *Client) error {
 	}
 }
 
-func (p *Pool) Len() int {
+func (p *pool) Len() int {
 	return len(p.clients)
 }

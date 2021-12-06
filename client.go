@@ -9,15 +9,44 @@ import (
 	"time"
 )
 
-type Client struct {
+type Client interface {
+	Close() error
+	Put(priority uint32, delay, ttr time.Duration, data []byte) (int, error)
+	Use(tube string) (string, error)
+	Reserve() (Job, error)
+	ReserveWithTimeout(timeout time.Duration) (Job, error)
+	ReserveJob(id int) (Job, error)
+	Delete(id int) error
+	Release(id int, priority uint32, delay time.Duration) error
+	Bury(id int, priority uint32) error
+	Touch(id int) error
+	Watch(tube string) (int, error)
+	Ignore(tube string) (int, error)
+	Peek(id int) (Job, error)
+	PeekReady() (Job, error)
+	PeekDelayed() (Job, error)
+	PeekBuried() (Job, error)
+	Kick(bound int) (int, error)
+	KickJob(id int) error
+	StatsJob(id int) (StatsJob, error)
+	StatsTube(tube string) (StatsTube, error)
+	Stats() (Stats, error)
+	ListTubes() ([]string, error)
+	ListTubeUsed() (string, error)
+	ListTubesWatched() ([]string, error)
+	PauseTube(tube string, delay time.Duration) error
+	ExecuteCommand(command Command) (CommandResponse, error)
+}
+
+type client struct {
 	conn *Conn
 }
 
-func NewClient(conn io.ReadWriteCloser) *Client {
-	return &Client{NewConn(textproto.NewConn(conn))}
+func NewClient(conn io.ReadWriteCloser) Client {
+	return &client{NewConn(textproto.NewConn(conn))}
 }
 
-func Dial(address string) (*Client, error) {
+func Dial(address string) (Client, error) {
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err
@@ -26,11 +55,11 @@ func Dial(address string) (*Client, error) {
 	return NewClient(conn), nil
 }
 
-func (c *Client) Close() error {
+func (c *client) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Client) Put(priority uint32, delay, ttr time.Duration, data []byte) (int, error) {
+func (c *client) Put(priority uint32, delay, ttr time.Duration, data []byte) (int, error) {
 	r, err := c.ExecuteCommand(PutCommand{priority, delay, ttr, data})
 	if err != nil {
 		return 0, err
@@ -39,7 +68,7 @@ func (c *Client) Put(priority uint32, delay, ttr time.Duration, data []byte) (in
 	return r.(PutCommandResponse).ID, nil
 }
 
-func (c *Client) Use(tube string) (string, error) {
+func (c *client) Use(tube string) (string, error) {
 	r, err := c.ExecuteCommand(UseCommand{tube})
 	if err != nil {
 		return "", err
@@ -48,7 +77,7 @@ func (c *Client) Use(tube string) (string, error) {
 	return r.(UseCommandResponse).Tube, nil
 }
 
-func (c *Client) Reserve() (Job, error) {
+func (c *client) Reserve() (Job, error) {
 	r, err := c.ExecuteCommand(ReserveCommand{})
 	if err != nil {
 		return Job{}, err
@@ -57,7 +86,7 @@ func (c *Client) Reserve() (Job, error) {
 	return Job{r.(ReserveCommandResponse).ID, r.(ReserveCommandResponse).Data}, nil
 }
 
-func (c *Client) ReserveWithTimeout(timeout time.Duration) (Job, error) {
+func (c *client) ReserveWithTimeout(timeout time.Duration) (Job, error) {
 	r, err := c.ExecuteCommand(ReserveWithTimeoutCommand{timeout})
 	if err != nil {
 		return Job{}, err
@@ -66,7 +95,7 @@ func (c *Client) ReserveWithTimeout(timeout time.Duration) (Job, error) {
 	return Job{r.(ReserveWithTimeoutCommandResponse).ID, r.(ReserveWithTimeoutCommandResponse).Data}, nil
 }
 
-func (c *Client) ReserveJob(id int) (Job, error) {
+func (c *client) ReserveJob(id int) (Job, error) {
 	r, err := c.ExecuteCommand(ReserveJobCommand{id})
 	if err != nil {
 		return Job{}, err
@@ -75,31 +104,31 @@ func (c *Client) ReserveJob(id int) (Job, error) {
 	return Job{r.(ReserveJobCommandResponse).ID, r.(ReserveJobCommandResponse).Data}, nil
 }
 
-func (c *Client) Delete(id int) error {
+func (c *client) Delete(id int) error {
 	_, err := c.ExecuteCommand(DeleteCommand{id})
 
 	return err
 }
 
-func (c *Client) Release(id int, priority uint32, delay time.Duration) error {
+func (c *client) Release(id int, priority uint32, delay time.Duration) error {
 	_, err := c.ExecuteCommand(ReleaseCommand{id, priority, delay})
 
 	return err
 }
 
-func (c *Client) Bury(id int, priority uint32) error {
+func (c *client) Bury(id int, priority uint32) error {
 	_, err := c.ExecuteCommand(BuryCommand{id, priority})
 
 	return err
 }
 
-func (c *Client) Touch(id int) error {
+func (c *client) Touch(id int) error {
 	_, err := c.ExecuteCommand(TouchCommand{id})
 
 	return err
 }
 
-func (c *Client) Watch(tube string) (int, error) {
+func (c *client) Watch(tube string) (int, error) {
 	r, err := c.ExecuteCommand(WatchCommand{tube})
 	if err != nil {
 		return 0, err
@@ -108,7 +137,7 @@ func (c *Client) Watch(tube string) (int, error) {
 	return r.(WatchCommandResponse).Count, nil
 }
 
-func (c *Client) Ignore(tube string) (int, error) {
+func (c *client) Ignore(tube string) (int, error) {
 	r, err := c.ExecuteCommand(IgnoreCommand{tube})
 	if err != nil {
 		return 0, err
@@ -117,7 +146,7 @@ func (c *Client) Ignore(tube string) (int, error) {
 	return r.(IgnoreCommandResponse).Count, nil
 }
 
-func (c *Client) Peek(id int) (Job, error) {
+func (c *client) Peek(id int) (Job, error) {
 	r, err := c.ExecuteCommand(PeekCommand{id})
 	if err != nil {
 		return Job{}, err
@@ -126,7 +155,7 @@ func (c *Client) Peek(id int) (Job, error) {
 	return Job{r.(PeekCommandResponse).ID, r.(PeekCommandResponse).Data}, nil
 }
 
-func (c *Client) PeekReady() (Job, error) {
+func (c *client) PeekReady() (Job, error) {
 	r, err := c.ExecuteCommand(PeekReadyCommand{})
 	if err != nil {
 		return Job{}, err
@@ -135,7 +164,7 @@ func (c *Client) PeekReady() (Job, error) {
 	return Job{r.(PeekReadyCommandResponse).ID, r.(PeekReadyCommandResponse).Data}, nil
 }
 
-func (c *Client) PeekDelayed() (Job, error) {
+func (c *client) PeekDelayed() (Job, error) {
 	r, err := c.ExecuteCommand(PeekDelayedCommand{})
 	if err != nil {
 		return Job{}, err
@@ -144,7 +173,7 @@ func (c *Client) PeekDelayed() (Job, error) {
 	return Job{r.(PeekDelayedCommandResponse).ID, r.(PeekDelayedCommandResponse).Data}, nil
 }
 
-func (c *Client) PeekBuried() (Job, error) {
+func (c *client) PeekBuried() (Job, error) {
 	r, err := c.ExecuteCommand(PeekBuriedCommand{})
 	if err != nil {
 		return Job{}, err
@@ -153,7 +182,7 @@ func (c *Client) PeekBuried() (Job, error) {
 	return Job{r.(PeekBuriedCommandResponse).ID, r.(PeekBuriedCommandResponse).Data}, nil
 }
 
-func (c *Client) Kick(bound int) (int, error) {
+func (c *client) Kick(bound int) (int, error) {
 	r, err := c.ExecuteCommand(KickCommand{bound})
 	if err != nil {
 		return 0, err
@@ -162,13 +191,13 @@ func (c *Client) Kick(bound int) (int, error) {
 	return r.(KickCommandResponse).Count, nil
 }
 
-func (c *Client) KickJob(id int) error {
+func (c *client) KickJob(id int) error {
 	_, err := c.ExecuteCommand(KickJobCommand{id})
 
 	return err
 }
 
-func (c *Client) StatsJob(id int) (StatsJob, error) {
+func (c *client) StatsJob(id int) (StatsJob, error) {
 	r, err := c.ExecuteCommand(StatsJobCommand{id})
 	if err != nil {
 		return StatsJob{}, err
@@ -182,7 +211,7 @@ func (c *Client) StatsJob(id int) (StatsJob, error) {
 	return stats, err
 }
 
-func (c *Client) StatsTube(tube string) (StatsTube, error) {
+func (c *client) StatsTube(tube string) (StatsTube, error) {
 	r, err := c.ExecuteCommand(StatsTubeCommand{tube})
 	if err != nil {
 		return StatsTube{}, err
@@ -196,7 +225,7 @@ func (c *Client) StatsTube(tube string) (StatsTube, error) {
 	return stats, err
 }
 
-func (c *Client) Stats() (Stats, error) {
+func (c *client) Stats() (Stats, error) {
 	r, err := c.ExecuteCommand(StatsCommand{})
 	if err != nil {
 		return Stats{}, err
@@ -210,7 +239,7 @@ func (c *Client) Stats() (Stats, error) {
 	return stats, err
 }
 
-func (c *Client) ListTubes() ([]string, error) {
+func (c *client) ListTubes() ([]string, error) {
 	r, err := c.ExecuteCommand(ListTubesCommand{})
 	if err != nil {
 		return nil, err
@@ -224,7 +253,7 @@ func (c *Client) ListTubes() ([]string, error) {
 	return tubes, nil
 }
 
-func (c *Client) ListTubeUsed() (string, error) {
+func (c *client) ListTubeUsed() (string, error) {
 	r, err := c.ExecuteCommand(ListTubeUsedCommand{})
 	if err != nil {
 		return "", err
@@ -233,7 +262,7 @@ func (c *Client) ListTubeUsed() (string, error) {
 	return r.(ListTubeUsedCommandResponse).Tube, nil
 }
 
-func (c *Client) ListTubesWatched() ([]string, error) {
+func (c *client) ListTubesWatched() ([]string, error) {
 	r, err := c.ExecuteCommand(ListTubesWatchedCommand{})
 	if err != nil {
 		return nil, err
@@ -247,13 +276,13 @@ func (c *Client) ListTubesWatched() ([]string, error) {
 	return tubes, nil
 }
 
-func (c *Client) PauseTube(tube string, delay time.Duration) error {
+func (c *client) PauseTube(tube string, delay time.Duration) error {
 	_, err := c.ExecuteCommand(PauseTubeCommand{tube, delay})
 
 	return err
 }
 
-func (c *Client) ExecuteCommand(command Command) (CommandResponse, error) {
+func (c *client) ExecuteCommand(command Command) (CommandResponse, error) {
 	id, err := c.conn.WriteRequest(command.CommandLine(), command.Body())
 	if err != nil {
 		return nil, err
