@@ -25,7 +25,7 @@ type Stats struct {
 	CmdListTubes          int     `json:"cmd-list-tubes" yaml:"cmd-list-tubes"`                   // is the cumulative number of list-tubes commands
 	CmdListTubeUsed       int     `json:"cmd-list-tube-used" yaml:"cmd-list-tube-used"`           // is the cumulative number of list-tube-used commands
 	CmdListTubesWatched   int     `json:"cmd-list-tubes-watched" yaml:"cmd-list-tubes-watched"`   // is the cumulative number of list-tubes-watched commands
-	CmdPauseTune          int     `json:"cmd-pause-tune" yaml:"cmd-pause-tube"`                   // is the cumulative number of pause-tube command
+	CmdPauseTube          int     `json:"cmd-pause-tube" yaml:"cmd-pause-tube"`                   // is the cumulative number of pause-tube command
 	JobTimeouts           int     `json:"job-timeouts" yaml:"job-timeouts"`                       // is the cumulative count of times a job has timed out
 	TotalJobs             int     `json:"total-jobs" yaml:"total-jobs"`                           // is the cumulative count of jobs created
 	MaxJobSize            int     `json:"max-job-size" yaml:"max-job-size"`                       // is the maximum number of bytes in a job
