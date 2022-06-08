@@ -1,8 +1,9 @@
-package beanstalk
+package beanstalk_test
 
 import (
 	"bytes"
 	"fmt"
+	"github.com/IvanLutokhin/go-beanstalk"
 	"reflect"
 	"strings"
 	"testing"
@@ -10,8 +11,8 @@ import (
 )
 
 func TestClient_Put(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"put 0 0 0 13\r\ntest draining\r\n",
 				"put 1 1 1 16\r\ntest job too big\r\n",
@@ -29,19 +30,19 @@ func TestClient_Put(t *testing.T) {
 		),
 	)
 
-	if _, err := c.Put(0, 0, 0, []byte("test draining")); err != ErrDraining {
+	if _, err := c.Put(0, 0, 0, []byte("test draining")); err != beanstalk.ErrDraining {
 		t.Fatal("expected draining error, but got", err)
 	}
 
-	if _, err := c.Put(1, 1*time.Second, 1*time.Second, []byte("test job too big")); err != ErrJobTooBig {
+	if _, err := c.Put(1, 1*time.Second, 1*time.Second, []byte("test job too big")); err != beanstalk.ErrJobTooBig {
 		t.Fatal("expected job too big error, but got", err)
 	}
 
-	if _, err := c.Put(0, 30*time.Second, 90*time.Second, []byte("test expected CRLF")); err != ErrExpectedCRLF {
+	if _, err := c.Put(0, 30*time.Second, 90*time.Second, []byte("test expected CRLF")); err != beanstalk.ErrExpectedCRLF {
 		t.Fatal("expected expected CRLF error, but got", err)
 	}
 
-	if _, err := c.Put(100, 0, 30*time.Minute, []byte("test buried")); err != ErrBuried {
+	if _, err := c.Put(100, 0, 30*time.Minute, []byte("test buried")); err != beanstalk.ErrBuried {
 		t.Fatal("expected buried error, but got", err)
 	}
 
@@ -61,8 +62,8 @@ func TestClient_Put(t *testing.T) {
 }
 
 func TestClient_Use(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"use test\r\n",
 			},
@@ -88,8 +89,8 @@ func TestClient_Use(t *testing.T) {
 }
 
 func TestClient_Reserve(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"reserve\r\n",
 				"reserve\r\n",
@@ -103,11 +104,11 @@ func TestClient_Reserve(t *testing.T) {
 		),
 	)
 
-	if _, err := c.Reserve(); err != ErrTimedOut {
+	if _, err := c.Reserve(); err != beanstalk.ErrTimedOut {
 		t.Fatal("expected timed out error, but got", err)
 	}
 
-	if _, err := c.Reserve(); err != ErrDeadlineSoon {
+	if _, err := c.Reserve(); err != beanstalk.ErrDeadlineSoon {
 		t.Fatal("expected deadline soon error, but got", err)
 	}
 
@@ -131,8 +132,8 @@ func TestClient_Reserve(t *testing.T) {
 }
 
 func TestClient_ReserveWithTimeout(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"reserve-with-timeout 5\r\n",
 				"reserve-with-timeout 60\r\n",
@@ -146,11 +147,11 @@ func TestClient_ReserveWithTimeout(t *testing.T) {
 		),
 	)
 
-	if _, err := c.ReserveWithTimeout(5 * time.Second); err != ErrTimedOut {
+	if _, err := c.ReserveWithTimeout(5 * time.Second); err != beanstalk.ErrTimedOut {
 		t.Fatal("expected timed out error, but got", err)
 	}
 
-	if _, err := c.ReserveWithTimeout(60 * time.Second); err != ErrDeadlineSoon {
+	if _, err := c.ReserveWithTimeout(60 * time.Second); err != beanstalk.ErrDeadlineSoon {
 		t.Fatal("expected deadline soon error, but got", err)
 	}
 
@@ -174,8 +175,8 @@ func TestClient_ReserveWithTimeout(t *testing.T) {
 }
 
 func TestClient_ReserveJob(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"reserve-job 1\r\n",
 				"reserve-job 1\r\n",
@@ -187,7 +188,7 @@ func TestClient_ReserveJob(t *testing.T) {
 		),
 	)
 
-	if _, err := c.ReserveJob(1); err != ErrNotFound {
+	if _, err := c.ReserveJob(1); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -211,8 +212,8 @@ func TestClient_ReserveJob(t *testing.T) {
 }
 
 func TestClient_Delete(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"delete 1\r\n",
 				"delete 1\r\n",
@@ -224,7 +225,7 @@ func TestClient_Delete(t *testing.T) {
 		),
 	)
 
-	if err := c.Delete(1); err != ErrNotFound {
+	if err := c.Delete(1); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -240,8 +241,8 @@ func TestClient_Delete(t *testing.T) {
 }
 
 func TestClient_Release(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"release 1 0 5\r\n",
 				"release 1 10 60\r\n",
@@ -255,11 +256,11 @@ func TestClient_Release(t *testing.T) {
 		),
 	)
 
-	if err := c.Release(1, 0, 5*time.Second); err != ErrNotFound {
+	if err := c.Release(1, 0, 5*time.Second); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
-	if err := c.Release(1, 10, 60*time.Second); err != ErrBuried {
+	if err := c.Release(1, 10, 60*time.Second); err != beanstalk.ErrBuried {
 		t.Fatal("expected buried error, but got", err)
 	}
 
@@ -275,8 +276,8 @@ func TestClient_Release(t *testing.T) {
 }
 
 func TestClient_Bury(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"bury 999 100\r\n",
 				"bury 1 10\r\n",
@@ -288,7 +289,7 @@ func TestClient_Bury(t *testing.T) {
 		),
 	)
 
-	if err := c.Bury(999, 100); err != ErrNotFound {
+	if err := c.Bury(999, 100); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -302,8 +303,8 @@ func TestClient_Bury(t *testing.T) {
 }
 
 func TestClient_Touch(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"touch 1\r\n",
 				"touch 1\r\n",
@@ -315,7 +316,7 @@ func TestClient_Touch(t *testing.T) {
 		),
 	)
 
-	if err := c.Touch(1); err != ErrNotFound {
+	if err := c.Touch(1); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -331,8 +332,8 @@ func TestClient_Touch(t *testing.T) {
 }
 
 func TestClient_Watch(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"watch test\r\n",
 			},
@@ -358,8 +359,8 @@ func TestClient_Watch(t *testing.T) {
 }
 
 func TestClient_Ignore(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"ignore test\r\n",
 				"ignore test\r\n",
@@ -371,7 +372,7 @@ func TestClient_Ignore(t *testing.T) {
 		),
 	)
 
-	if _, err := c.Ignore("test"); err != ErrNotIgnored {
+	if _, err := c.Ignore("test"); err != beanstalk.ErrNotIgnored {
 		t.Fatal("expected not ignored error, but got", err)
 	}
 
@@ -391,8 +392,8 @@ func TestClient_Ignore(t *testing.T) {
 }
 
 func TestClient_Peek(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"peek 1\r\n",
 				"peek 1\r\n",
@@ -404,7 +405,7 @@ func TestClient_Peek(t *testing.T) {
 		),
 	)
 
-	if _, err := c.Peek(1); err != ErrNotFound {
+	if _, err := c.Peek(1); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -428,8 +429,8 @@ func TestClient_Peek(t *testing.T) {
 }
 
 func TestClient_PeekReady(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"peek-ready\r\n",
 				"peek-ready\r\n",
@@ -441,7 +442,7 @@ func TestClient_PeekReady(t *testing.T) {
 		),
 	)
 
-	if _, err := c.PeekReady(); err != ErrNotFound {
+	if _, err := c.PeekReady(); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -465,8 +466,8 @@ func TestClient_PeekReady(t *testing.T) {
 }
 
 func TestClient_PeekDelayed(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"peek-delayed\r\n",
 				"peek-delayed\r\n",
@@ -478,7 +479,7 @@ func TestClient_PeekDelayed(t *testing.T) {
 		),
 	)
 
-	if _, err := c.PeekDelayed(); err != ErrNotFound {
+	if _, err := c.PeekDelayed(); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -502,8 +503,8 @@ func TestClient_PeekDelayed(t *testing.T) {
 }
 
 func TestClient_PeekBuried(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"peek-buried\r\n",
 				"peek-buried\r\n",
@@ -515,7 +516,7 @@ func TestClient_PeekBuried(t *testing.T) {
 		),
 	)
 
-	if _, err := c.PeekBuried(); err != ErrNotFound {
+	if _, err := c.PeekBuried(); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -539,8 +540,8 @@ func TestClient_PeekBuried(t *testing.T) {
 }
 
 func TestClient_Kick(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"kick 3\r\n",
 			},
@@ -566,8 +567,8 @@ func TestClient_Kick(t *testing.T) {
 }
 
 func TestClient_KickJob(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"kick-job 1\r\n",
 				"kick-job 1\r\n",
@@ -579,7 +580,7 @@ func TestClient_KickJob(t *testing.T) {
 		),
 	)
 
-	if err := c.KickJob(1); err != ErrNotFound {
+	if err := c.KickJob(1); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -595,8 +596,8 @@ func TestClient_KickJob(t *testing.T) {
 }
 
 func TestClient_StatsJob(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"stats-job 1\r\n",
 				"stats-job 1\r\n",
@@ -624,7 +625,7 @@ func TestClient_StatsJob(t *testing.T) {
 		),
 	)
 
-	if _, err := c.StatsJob(1); err != ErrNotFound {
+	if _, err := c.StatsJob(1); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -644,8 +645,8 @@ func TestClient_StatsJob(t *testing.T) {
 }
 
 func TestClient_StatsTube(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"stats-tube test\r\n",
 				"stats-tube default\r\n",
@@ -673,7 +674,7 @@ func TestClient_StatsTube(t *testing.T) {
 		),
 	)
 
-	if _, err := c.StatsTube("test"); err != ErrNotFound {
+	if _, err := c.StatsTube("test"); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 
@@ -693,8 +694,8 @@ func TestClient_StatsTube(t *testing.T) {
 }
 
 func TestClient_Stats(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"stats\r\n",
 			},
@@ -770,8 +771,8 @@ func TestClient_Stats(t *testing.T) {
 }
 
 func TestClient_ListTubes(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"list-tubes\r\n",
 			},
@@ -797,8 +798,8 @@ func TestClient_ListTubes(t *testing.T) {
 }
 
 func TestClient_ListTubeUsed(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"list-tube-used\r\n",
 			},
@@ -824,8 +825,8 @@ func TestClient_ListTubeUsed(t *testing.T) {
 }
 
 func TestClient_ListTubesWatched(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"list-tubes-watched\r\n",
 			},
@@ -851,8 +852,8 @@ func TestClient_ListTubesWatched(t *testing.T) {
 }
 
 func TestClient_PauseTube(t *testing.T) {
-	c := NewClient(
-		NewMockConn(
+	c := beanstalk.NewClient(
+		beanstalk.NewMockConn(
 			[]string{
 				"pause-tube test 60\r\n",
 				"pause-tube test 0\r\n",
@@ -864,7 +865,7 @@ func TestClient_PauseTube(t *testing.T) {
 		),
 	)
 
-	if err := c.PauseTube("test", 1*time.Minute); err != ErrNotFound {
+	if err := c.PauseTube("test", 1*time.Minute); err != beanstalk.ErrNotFound {
 		t.Fatal("expected not found error, but got", err)
 	}
 

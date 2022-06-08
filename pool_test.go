@@ -1,11 +1,12 @@
-package beanstalk
+package beanstalk_test
 
 import (
+	"github.com/IvanLutokhin/go-beanstalk"
 	"testing"
 )
 
-func newMockPool(capacity int, open bool) (Pool, error) {
-	return NewPool(func() (Client, error) { return NewClient(NewMockConn(nil, nil)), nil }, capacity, open)
+func newMockPool(capacity int, open bool) (beanstalk.Pool, error) {
+	return beanstalk.NewPool(func() (beanstalk.Client, error) { return beanstalk.NewClient(beanstalk.NewMockConn(nil, nil)), nil }, capacity, open)
 }
 
 func TestPool_Get(t *testing.T) {
