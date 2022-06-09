@@ -4,7 +4,7 @@ type StatsJob struct {
 	ID       int    `json:"id" yaml:"id"`              // is the job id
 	Tube     string `json:"tube" yaml:"tube"`          // is the name of the tube that contains this job
 	State    string `json:"state" yaml:"state"`        // is "ready" or "delayed" or "reserved" or "buried"
-	Priority int    `json:"priority" yaml:"priority"`  // is the priority value set by the put, release, or bury commands
+	Priority int    `json:"priority" yaml:"pri"`       // is the priority value set by the put, release, or bury commands
 	Age      int    `json:"age" yaml:"age"`            // is the time in seconds since the put command that created this job
 	Delay    int    `json:"delay" yaml:"delay"`        // is the integer number of seconds to wait before putting this job in the ready queue
 	TTR      int    `json:"ttr" yaml:"ttr"`            // time to run -- is the integer number of seconds a worker is allowed to run this job

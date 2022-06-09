@@ -15,5 +15,6 @@ var (
 	ErrOutOfMemory        = errors.New("beanstalk: out of memory")
 	ErrTimedOut           = errors.New("beanstalk: timed out")
 	ErrUnknownCommand     = errors.New("beanstalk: unknown command")
+	ErrMalformedCommand   = errors.New("beanstalk: malformed command")
 	ErrUnexpectedResponse = errors.New("beanstalk: unexpected response")
 )

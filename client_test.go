@@ -1,881 +1,1645 @@
 package beanstalk_test
 
 import (
-	"bytes"
-	"fmt"
 	"github.com/IvanLutokhin/go-beanstalk"
-	"reflect"
-	"strings"
+	"github.com/IvanLutokhin/go-beanstalk/pkg/mock"
+	"github.com/stretchr/testify/require"
+	"io"
 	"testing"
 	"time"
 )
 
-func TestClient_Put(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"put 0 0 0 13\r\ntest draining\r\n",
-				"put 1 1 1 16\r\ntest job too big\r\n",
-				"put 0 30 90 18\r\ntest expected CRLF\r\n",
-				"put 100 0 1800 11\r\ntest buried\r\n",
-				"put 1 5 600 4\r\ntest\r\n",
-			},
-			[]string{
-				"DRAINING\r\n",
-				"JOB_TOO_BIG\r\n",
-				"EXPECTED_CRLF\r\n",
-				"BURIED 1\r\n",
-				"INSERTED 1\r\n",
-			},
-		),
-	)
+func TestNewClient(t *testing.T) {
+	client := beanstalk.NewClient(mock.NewConn(nil, nil))
 
-	if _, err := c.Put(0, 0, 0, []byte("test draining")); err != beanstalk.ErrDraining {
-		t.Fatal("expected draining error, but got", err)
-	}
-
-	if _, err := c.Put(1, 1*time.Second, 1*time.Second, []byte("test job too big")); err != beanstalk.ErrJobTooBig {
-		t.Fatal("expected job too big error, but got", err)
-	}
-
-	if _, err := c.Put(0, 30*time.Second, 90*time.Second, []byte("test expected CRLF")); err != beanstalk.ErrExpectedCRLF {
-		t.Fatal("expected expected CRLF error, but got", err)
-	}
-
-	if _, err := c.Put(100, 0, 30*time.Minute, []byte("test buried")); err != beanstalk.ErrBuried {
-		t.Fatal("expected buried error, but got", err)
-	}
-
-	id, err := c.Put(1, 5*time.Second, 10*time.Minute, []byte("test"))
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	if id != 1 {
-		t.Fatal("expected 1, but got", id)
-	}
-
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	require.NotNil(t, client.CreatedAt())
+	require.Equal(t, int64(0), client.UsedAt().Unix())
+	require.Equal(t, int64(0), client.ClosedAt().Unix())
 }
 
-func TestClient_Use(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"use test\r\n",
-			},
-			[]string{
-				"USING test\r\n",
-			},
-		),
-	)
+func TestClient_Close(t *testing.T) {
+	client := beanstalk.NewClient(mock.NewConn(nil, nil))
 
-	tube, err := c.Use("test")
+	require.Equal(t, int64(0), client.ClosedAt().Unix())
 
-	if err != nil {
-		t.Error(err)
-	}
-
-	if !strings.EqualFold("test", tube) {
-		t.Fatal(fmt.Sprintf("expected 'test', but got '%s'", tube))
-	}
-
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestClient_Reserve(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"reserve\r\n",
-				"reserve\r\n",
-				"reserve\r\n",
-			},
-			[]string{
-				"TIMED_OUT\r\n",
-				"DEADLINE_SOON\r\n",
-				"RESERVED 1 4\r\ntest\r\n",
-			},
-		),
-	)
-
-	if _, err := c.Reserve(); err != beanstalk.ErrTimedOut {
-		t.Fatal("expected timed out error, but got", err)
-	}
-
-	if _, err := c.Reserve(); err != beanstalk.ErrDeadlineSoon {
-		t.Fatal("expected deadline soon error, but got", err)
-	}
-
-	job, err := c.Reserve()
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	if job.ID != 1 {
-		t.Fatal("expected 1, but got", job.ID)
-	}
-
-	if bytes.Compare([]byte("test"), job.Data) != 0 {
-		t.Fatal(fmt.Sprintf("expected 'test', but got '%s'", string(job.Data)))
-	}
-
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestClient_ReserveWithTimeout(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"reserve-with-timeout 5\r\n",
-				"reserve-with-timeout 60\r\n",
-				"reserve-with-timeout 600\r\n",
-			},
-			[]string{
-				"TIMED_OUT\r\n",
-				"DEADLINE_SOON\r\n",
-				"RESERVED 1 4\r\ntest\r\n",
-			},
-		),
-	)
-
-	if _, err := c.ReserveWithTimeout(5 * time.Second); err != beanstalk.ErrTimedOut {
-		t.Fatal("expected timed out error, but got", err)
-	}
-
-	if _, err := c.ReserveWithTimeout(60 * time.Second); err != beanstalk.ErrDeadlineSoon {
-		t.Fatal("expected deadline soon error, but got", err)
-	}
-
-	job, err := c.ReserveWithTimeout(10 * time.Minute)
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	if job.ID != 1 {
-		t.Fatal("expected 1, but got", job.ID)
-	}
-
-	if bytes.Compare([]byte("test"), job.Data) != 0 {
-		t.Fatal(fmt.Sprintf("expected 'test', but got '%s'", string(job.Data)))
-	}
-
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestClient_ReserveJob(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"reserve-job 1\r\n",
-				"reserve-job 1\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"RESERVED 1 4\r\ntest\r\n",
-			},
-		),
-	)
-
-	if _, err := c.ReserveJob(1); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
-
-	job, err := c.ReserveJob(1)
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	if job.ID != 1 {
-		t.Fatal("expected 1, but got", job.ID)
-	}
-
-	if bytes.Compare([]byte("test"), job.Data) != 0 {
-		t.Fatal(fmt.Sprintf("expected 'test', but got '%s'", string(job.Data)))
-	}
-
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestClient_Delete(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"delete 1\r\n",
-				"delete 1\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"DELETED\r\n",
-			},
-		),
-	)
-
-	if err := c.Delete(1); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
-
-	err := c.Delete(1)
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestClient_Release(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"release 1 0 5\r\n",
-				"release 1 10 60\r\n",
-				"release 1 999 600\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"BURIED\r\n",
-				"RELEASED\r\n",
-			},
-		),
-	)
-
-	if err := c.Release(1, 0, 5*time.Second); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
-
-	if err := c.Release(1, 10, 60*time.Second); err != beanstalk.ErrBuried {
-		t.Fatal("expected buried error, but got", err)
-	}
-
-	err := c.Release(1, 999, 10*time.Minute)
-
-	if err != nil {
-		t.Error(err)
-	}
-
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestClient_Bury(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"bury 999 100\r\n",
-				"bury 1 10\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"BURIED\n",
-			},
-		),
-	)
-
-	if err := c.Bury(999, 100); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
-
-	if err := c.Bury(1, 10); err != nil {
+	if err := client.Close(); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := c.Close(); err != nil {
-		t.Error(err)
-	}
+	require.NotEqual(t, int64(0), client.ClosedAt().Unix())
+}
+
+func TestClient_Put(t *testing.T) {
+	t.Run("inserted / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"put 1 5 600 4\r\ntest\r\n"}, []string{"INSERTED\r\n"})
+
+		_, err := c.Put(1, 5*time.Second, 10*time.Minute, []byte("test"))
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("inserted / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"put 1 5 600 4\r\ntest\r\n"}, []string{"INSERTED test\r\n"})
+
+		_, err := c.Put(1, 5*time.Second, 10*time.Minute, []byte("test"))
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("inserted / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"put 1 5 600 4\r\ntest\r\n"}, []string{"INSERTED 1\r\n"})
+
+		id, err := c.Put(1, 5*time.Second, 10*time.Minute, []byte("test"))
+
+		require.Nil(t, err)
+		require.Equal(t, 1, id)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("buried", func(t *testing.T) {
+		c := mock.NewClient([]string{"put 100 0 1800 11\r\ntest buried\r\n"}, []string{"BURIED 1\r\n"})
+
+		_, err := c.Put(100, 0, 30*time.Minute, []byte("test buried"))
+
+		require.Equal(t, beanstalk.ErrBuried, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("expected CRLF", func(t *testing.T) {
+		c := mock.NewClient([]string{"put 0 30 90 18\r\ntest expected CRLF\r\n"}, []string{"EXPECTED_CRLF\r\n"})
+
+		_, err := c.Put(0, 30*time.Second, 90*time.Second, []byte("test expected CRLF"))
+
+		require.Equal(t, beanstalk.ErrExpectedCRLF, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("job too big", func(t *testing.T) {
+		c := mock.NewClient([]string{"put 1 1 1 16\r\ntest job too big\r\n"}, []string{"JOB_TOO_BIG\r\n"})
+
+		_, err := c.Put(1, 1*time.Second, 1*time.Second, []byte("test job too big"))
+
+		require.Equal(t, beanstalk.ErrJobTooBig, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("draining", func(t *testing.T) {
+		c := mock.NewClient([]string{"put 0 0 0 13\r\ntest draining\r\n"}, []string{"DRAINING\r\n"})
+
+		_, err := c.Put(0, 0, 0, []byte("test draining"))
+
+		require.Equal(t, beanstalk.ErrDraining, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"put 0 0 0 24\r\ntest unexpected response\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.Put(0, 0, 0, []byte("test unexpected response"))
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestClient_Use(t *testing.T) {
+	t.Run("using / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"use test\r\n"}, []string{"USING\r\n"})
+
+		_, err := c.Use("test")
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("using / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"use test\r\n"}, []string{"USING test\r\n"})
+
+		tube, err := c.Use("test")
+
+		require.Nil(t, err)
+		require.Equal(t, "test", tube)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"use test\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.Use("test")
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestClient_Reserve(t *testing.T) {
+	t.Run("reserved / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve\r\n"}, []string{"RESERVED\r\n"})
+
+		_, err := c.Reserve()
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("reserved / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"})
+
+		_, err := c.Reserve()
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("reserved / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve\r\n"}, []string{"RESERVED 1 4\r\ntest\r\n"})
+
+		job, err := c.Reserve()
+
+		require.Nil(t, err)
+		require.Equal(t, 1, job.ID)
+		require.Equal(t, []byte("test"), job.Data)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("deadline soon", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve\r\n"}, []string{"DEADLINE_SOON\r\n"})
+
+		_, err := c.Reserve()
+
+		require.Equal(t, beanstalk.ErrDeadlineSoon, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("timed out", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve\r\n"}, []string{"TIMED_OUT\r\n"})
+
+		_, err := c.Reserve()
+
+		require.Equal(t, beanstalk.ErrTimedOut, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.Reserve()
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestClient_ReserveWithTimeout(t *testing.T) {
+	t.Run("reserved / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED\r\n"})
+
+		_, err := c.ReserveWithTimeout(5 * time.Second)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("reserved / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"})
+
+		_, err := c.ReserveWithTimeout(5 * time.Second)
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("reserved / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED 1 4\r\ntest\r\n"})
+
+		job, err := c.ReserveWithTimeout(5 * time.Second)
+
+		require.Nil(t, err)
+		require.Equal(t, 1, job.ID)
+		require.Equal(t, []byte("test"), job.Data)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("deadline soon", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-with-timeout 60\r\n"}, []string{"DEADLINE_SOON\r\n"})
+
+		_, err := c.ReserveWithTimeout(60 * time.Second)
+
+		require.Equal(t, beanstalk.ErrDeadlineSoon, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("timed out", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-with-timeout 600\r\n"}, []string{"TIMED_OUT\r\n"})
+
+		_, err := c.ReserveWithTimeout(10 * time.Minute)
+
+		require.Equal(t, beanstalk.ErrTimedOut, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-with-timeout 300\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.ReserveWithTimeout(300 * time.Second)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestClient_ReserveJob(t *testing.T) {
+	t.Run("reserved / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-job 1\r\n"}, []string{"RESERVED\r\n"})
+
+		_, err := c.ReserveJob(1)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("reserved / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-job 1\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"})
+
+		_, err := c.ReserveJob(1)
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("reserved / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-job 1\r\n"}, []string{"RESERVED 1 4\r\ntest\r\n"})
+
+		job, err := c.ReserveJob(1)
+
+		require.Nil(t, err)
+		require.Equal(t, 1, job.ID)
+		require.Equal(t, []byte("test"), job.Data)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-job 1\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		_, err := c.ReserveJob(1)
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"reserve-job 1\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.ReserveJob(1)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestClient_Delete(t *testing.T) {
+	t.Run("deleted / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"delete 1\r\n"}, []string{"DELETED\r\n"})
+
+		err := c.Delete(1)
+
+		require.Nil(t, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"delete 1\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		err := c.Delete(1)
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"delete 1\r\n"}, []string{"TEST\r\n"})
+
+		err := c.Delete(1)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestClient_Release(t *testing.T) {
+	t.Run("released / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"release 1 0 10\r\n"}, []string{"RELEASED\r\n"})
+
+		err := c.Release(1, 0, 10*time.Second)
+
+		require.Nil(t, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("buried", func(t *testing.T) {
+		c := mock.NewClient([]string{"release 1 999 600\r\n"}, []string{"BURIED\r\n"})
+
+		err := c.Release(1, 999, 10*time.Minute)
+
+		require.Equal(t, beanstalk.ErrBuried, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"release 1 10 600\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		err := c.Release(1, 10, 10*time.Minute)
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"release 1 0 5\r\n"}, []string{"TEST\r\n"})
+
+		err := c.Release(1, 0, 5*time.Second)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestClient_Bury(t *testing.T) {
+	t.Run("buried / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"bury 1 10\r\n"}, []string{"BURIED\r\n"})
+
+		err := c.Bury(1, 10)
+
+		require.Nil(t, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"bury 999 0\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		err := c.Bury(999, 0)
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"bury 1 0\r\n"}, []string{"TEST\r\n"})
+
+		err := c.Bury(1, 0)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_Touch(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"touch 1\r\n",
-				"touch 1\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"TOUCHED\r\n",
-			},
-		),
-	)
+	t.Run("touched / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"touch 1\r\n"}, []string{"TOUCHED\r\n"})
 
-	if err := c.Touch(1); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
+		err := c.Touch(1)
 
-	err := c.Touch(1)
+		require.Nil(t, err)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"touch 1\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		err := c.Touch(1)
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"touch 1\r\n"}, []string{"TEST\r\n"})
+
+		err := c.Touch(1)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_Watch(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"watch test\r\n",
-			},
-			[]string{
-				"WATCHING 1\r\n",
-			},
-		),
-	)
+	t.Run("watching / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"watch test\r\n"}, []string{"WATCHING\r\n"})
 
-	count, err := c.Watch("test")
+		_, err := c.Watch("test")
 
-	if err != nil {
-		t.Error(err)
-	}
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
 
-	if count != 1 {
-		t.Fatal("expected 1, but got", count)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	t.Run("watching / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"watch test\r\n"}, []string{"WATCHING test\r\n"})
+
+		_, err := c.Watch("test")
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("watching / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"watch test\r\n"}, []string{"WATCHING 1\r\n"})
+
+		count, err := c.Watch("test")
+
+		require.Nil(t, err)
+		require.Equal(t, 1, count)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"watch test\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.Watch("test")
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_Ignore(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"ignore test\r\n",
-				"ignore test\r\n",
-			},
-			[]string{
-				"NOT_IGNORED\r\n",
-				"WATCHING 1\n",
-			},
-		),
-	)
+	t.Run("watching / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"ignore test\r\n"}, []string{"WATCHING\r\n"})
 
-	if _, err := c.Ignore("test"); err != beanstalk.ErrNotIgnored {
-		t.Fatal("expected not ignored error, but got", err)
-	}
+		_, err := c.Ignore("test")
 
-	count, err := c.Ignore("test")
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if count != 1 {
-		t.Fatal("expected 1, but got", count)
-	}
+	t.Run("watching / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"ignore test\r\n"}, []string{"WATCHING test\r\n"})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+		_, err := c.Ignore("test")
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("watching / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"ignore test\r\n"}, []string{"WATCHING 1\r\n"})
+
+		count, err := c.Ignore("test")
+
+		require.Nil(t, err)
+		require.Equal(t, 1, count)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not ignored", func(t *testing.T) {
+		c := mock.NewClient([]string{"ignore test\r\n"}, []string{"NOT_IGNORED\r\n"})
+
+		_, err := c.Ignore("test")
+
+		require.Equal(t, beanstalk.ErrNotIgnored, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"ignore test\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.Ignore("test")
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_Peek(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"peek 1\r\n",
-				"peek 1\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"FOUND 1 4\r\ntest\r\n",
-			},
-		),
-	)
+	t.Run("found / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek 1\r\n"}, []string{"FOUND\r\n"})
 
-	if _, err := c.Peek(1); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
+		_, err := c.Peek(1)
 
-	job, err := c.Peek(1)
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if job.ID != 1 {
-		t.Fatal("expected 1, but got", job.ID)
-	}
+	t.Run("found / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek 1\r\n"}, []string{"FOUND test 4\r\ntest\r\n"})
 
-	if bytes.Compare([]byte("test"), job.Data) != 0 {
-		t.Fatal(fmt.Sprintf("expected 'test', but got '%s'", string(job.Data)))
-	}
+		_, err := c.Peek(1)
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("found / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek 1\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"})
+
+		job, err := c.Peek(1)
+
+		require.Nil(t, err)
+		require.Equal(t, 1, job.ID)
+		require.Equal(t, []byte("test"), job.Data)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek 1\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		_, err := c.Peek(1)
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek 1\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.Peek(1)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_PeekReady(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"peek-ready\r\n",
-				"peek-ready\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"FOUND 1 4\r\ntest\r\n",
-			},
-		),
-	)
+	t.Run("found / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-ready\r\n"}, []string{"FOUND\r\n"})
 
-	if _, err := c.PeekReady(); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
+		_, err := c.PeekReady()
 
-	job, err := c.PeekReady()
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if job.ID != 1 {
-		t.Fatal("expected 1, but got", job.ID)
-	}
+	t.Run("found / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-ready\r\n"}, []string{"FOUND test 4\r\ntest\r\n"})
 
-	if bytes.Compare([]byte("test"), job.Data) != 0 {
-		t.Fatal(fmt.Sprintf("expected 'test', but got '%s'", string(job.Data)))
-	}
+		_, err := c.PeekReady()
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("found / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-ready\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"})
+
+		job, err := c.PeekReady()
+
+		require.Nil(t, err)
+		require.Equal(t, 1, job.ID)
+		require.Equal(t, []byte("test"), job.Data)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-ready\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		_, err := c.PeekReady()
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-ready\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.PeekReady()
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_PeekDelayed(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"peek-delayed\r\n",
-				"peek-delayed\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"FOUND 1 4\r\ntest\r\n",
-			},
-		),
-	)
+	t.Run("found / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-delayed\r\n"}, []string{"FOUND\r\n"})
 
-	if _, err := c.PeekDelayed(); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
+		_, err := c.PeekDelayed()
 
-	job, err := c.PeekDelayed()
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if job.ID != 1 {
-		t.Fatal("expected 1, but got", job.ID)
-	}
+	t.Run("found / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-delayed\r\n"}, []string{"FOUND test 4\r\ntest\r\n"})
 
-	if bytes.Compare([]byte("test"), job.Data) != 0 {
-		t.Fatal(fmt.Sprintf("expected 'test', but got '%s'", string(job.Data)))
-	}
+		_, err := c.PeekDelayed()
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("found / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-delayed\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"})
+
+		job, err := c.PeekDelayed()
+
+		require.Nil(t, err)
+		require.Equal(t, 1, job.ID)
+		require.Equal(t, []byte("test"), job.Data)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-delayed\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		_, err := c.PeekDelayed()
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-delayed\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.PeekDelayed()
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_PeekBuried(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"peek-buried\r\n",
-				"peek-buried\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"FOUND 1 4\r\ntest\r\n",
-			},
-		),
-	)
+	t.Run("found / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-buried\r\n"}, []string{"FOUND\r\n"})
 
-	if _, err := c.PeekBuried(); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
+		_, err := c.PeekBuried()
 
-	job, err := c.PeekBuried()
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if job.ID != 1 {
-		t.Fatal("expected 1, but got", job.ID)
-	}
+	t.Run("found / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-buried\r\n"}, []string{"FOUND test 4\r\ntest\r\n"})
 
-	if bytes.Compare([]byte("test"), job.Data) != 0 {
-		t.Fatal(fmt.Sprintf("expected 'test', but got '%s'", string(job.Data)))
-	}
+		_, err := c.PeekBuried()
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("found / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-buried\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"})
+
+		job, err := c.PeekBuried()
+
+		require.Nil(t, err)
+		require.Equal(t, 1, job.ID)
+		require.Equal(t, []byte("test"), job.Data)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-buried\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		_, err := c.PeekBuried()
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"peek-buried\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.PeekBuried()
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_Kick(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"kick 3\r\n",
-			},
-			[]string{
-				"KICKED 3\r\n",
-			},
-		),
-	)
+	t.Run("kicked / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"kick 3\r\n"}, []string{"KICKED\r\n"})
 
-	count, err := c.Kick(3)
+		_, err := c.Kick(3)
 
-	if err != nil {
-		t.Error(err)
-	}
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
 
-	if count != 3 {
-		t.Fatal("expected 3, but got", count)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	t.Run("kicked / malformed response", func(t *testing.T) {
+		c := mock.NewClient([]string{"kick 5\r\n"}, []string{"KICKED test\r\n"})
+
+		_, err := c.Kick(5)
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "invalid syntax")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("kicked / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"kick 1\r\n"}, []string{"KICKED 1\r\n"})
+
+		count, err := c.Kick(1)
+
+		require.Nil(t, err)
+		require.Equal(t, 1, count)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"kick 10\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.Kick(10)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_KickJob(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"kick-job 1\r\n",
-				"kick-job 1\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"KICKED\r\n",
-			},
-		),
-	)
+	t.Run("kicked / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"kick-job 1\r\n"}, []string{"KICKED\r\n"})
 
-	if err := c.KickJob(1); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
+		err := c.KickJob(1)
 
-	err := c.KickJob(1)
+		require.Nil(t, err)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"kick-job 1\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		err := c.KickJob(1)
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"kick-job 1\r\n"}, []string{"TEST\r\n"})
+
+		err := c.KickJob(1)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_StatsJob(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
+	t.Run("ok / success", func(t *testing.T) {
+		c := mock.NewClient(
+			[]string{"stats-job 1\r\n"},
 			[]string{
-				"stats-job 1\r\n",
-				"stats-job 1\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"OK 144\r\n" +
+				"OK 148\r\n" +
 					"---\n" +
 					"id: 1\n" +
 					"tube: default\n" +
 					"state: ready\n" +
-					"pri: 0\n" +
+					"pri: 999\n" +
 					"age: 12\n" +
-					"delay: 0\n" +
+					"delay: 15\n" +
 					"ttr: 1\n" +
-					"time-left: 0\n" +
-					"file: 0\n" +
-					"reserves: 0\n" +
-					"timeouts: 0\n" +
-					"releases: 0\n" +
-					"buries: 0\n" +
-					"kicks: 0\n" +
+					"time-left: 10\n" +
+					"file: 1\n" +
+					"reserves: 1\n" +
+					"timeouts: 1\n" +
+					"releases: 1\n" +
+					"buries: 1\n" +
+					"kicks: 1\n" +
 					"\r\n",
 			},
-		),
-	)
+		)
 
-	if _, err := c.StatsJob(1); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
+		stats, err := c.StatsJob(1)
 
-	stats, err := c.StatsJob(1)
+		require.Nil(t, err)
+		require.Equal(t, 1, stats.ID)
+		require.Equal(t, "default", stats.Tube)
+		require.Equal(t, "ready", stats.State)
+		require.Equal(t, 999, stats.Priority)
+		require.Equal(t, 12, stats.Age)
+		require.Equal(t, 15, stats.Delay)
+		require.Equal(t, 1, stats.TTR)
+		require.Equal(t, 10, stats.TimeLeft)
+		require.Equal(t, 1, stats.File)
+		require.Equal(t, 1, stats.Reserves)
+		require.Equal(t, 1, stats.Timeouts)
+		require.Equal(t, 1, stats.Releases)
+		require.Equal(t, 1, stats.Buries)
+		require.Equal(t, 1, stats.Kicks)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if stats.ID != 1 {
-		t.Fatal("expected 1, but got", stats.ID)
-	}
+	t.Run("ok / failure", func(t *testing.T) {
+		c := mock.NewClient(
+			[]string{"stats-job 1\r\n"},
+			[]string{
+				"OK 6\r\n" +
+					"---\n" +
+					"test\n" +
+					"\r\n",
+			},
+		)
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+		_, err := c.StatsJob(1)
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "cannot unmarshal")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"stats-job 1\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		_, err := c.StatsJob(1)
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"stats-job 1\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.StatsJob(1)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_StatsTube(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
+	t.Run("ok / success", func(t *testing.T) {
+		c := mock.NewClient(
+			[]string{"stats-tube default\r\n"},
 			[]string{
-				"stats-tube test\r\n",
-				"stats-tube default\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"OK 265\r\n" +
+				"OK 268\r\n" +
 					"---\n" +
 					"name: default\n" +
-					"current-jobs-urgent: 0\n" +
-					"current-jobs-ready: 0\n" +
-					"current-jobs-reserved: 0\n" +
-					"current-jobs-delayed: 0\n" +
-					"current-jobs-buried: 0\n" +
-					"total-jobs: 0\n" +
+					"current-jobs-urgent: 1\n" +
+					"current-jobs-ready: 1\n" +
+					"current-jobs-reserved: 1\n" +
+					"current-jobs-delayed: 1\n" +
+					"current-jobs-buried: 1\n" +
+					"total-jobs: 5\n" +
 					"current-using: 3\n" +
 					"current-watching: 3\n" +
-					"current-waiting: 0\n" +
-					"cmd-delete: 0\n" +
-					"cmd-pause-tube: 0\n" +
-					"pause: 0\n" +
-					"pause-time-left: 0\n" +
+					"current-waiting: 2\n" +
+					"cmd-delete: 1\n" +
+					"cmd-pause-tube: 1\n" +
+					"pause: 100\n" +
+					"pause-time-left: 10\n" +
 					"\r\n",
 			},
-		),
-	)
+		)
 
-	if _, err := c.StatsTube("test"); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
+		stats, err := c.StatsTube("default")
 
-	stats, err := c.StatsTube("default")
+		require.Nil(t, err)
+		require.Equal(t, "default", stats.Name)
+		require.Equal(t, 1, stats.CurrentJobsUrgent)
+		require.Equal(t, 1, stats.CurrentJobsReady)
+		require.Equal(t, 1, stats.CurrentJobsReserved)
+		require.Equal(t, 1, stats.CurrentJobsDelayed)
+		require.Equal(t, 1, stats.CurrentJobsBuried)
+		require.Equal(t, 5, stats.TotalJobs)
+		require.Equal(t, 3, stats.CurrentUsing)
+		require.Equal(t, 3, stats.CurrentWatching)
+		require.Equal(t, 2, stats.CurrentWaiting)
+		require.Equal(t, 1, stats.CmdDelete)
+		require.Equal(t, 1, stats.CmdPauseTube)
+		require.Equal(t, 100, stats.Pause)
+		require.Equal(t, 10, stats.PauseTimeLeft)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if !strings.EqualFold("default", stats.Name) {
-		t.Fatal(fmt.Sprintf("expected 'default', but got '%s'", stats.Name))
-	}
+	t.Run("ok / failure", func(t *testing.T) {
+		c := mock.NewClient(
+			[]string{"stats-tube test\r\n"},
+			[]string{
+				"OK 6\r\n" +
+					"---\n" +
+					"test\n" +
+					"\r\n",
+			},
+		)
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+		_, err := c.StatsTube("test")
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "cannot unmarshal")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"stats-tube test\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		_, err := c.StatsTube("test")
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"stats-tube test\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.StatsTube("test")
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_Stats(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
+	t.Run("ok / success", func(t *testing.T) {
+		c := mock.NewClient(
+			[]string{"stats\r\n"},
 			[]string{
-				"stats\r\n",
-			},
-			[]string{
-				"OK 900\r\n" +
+				"OK 902\r\n" +
 					"---\n" +
-					"current-jobs-urgent: 0\n" +
-					"current-jobs-ready: 0\n" +
-					"current-jobs-reserved: 0\n" +
-					"current-jobs-delayed: 0\n" +
-					"current-jobs-buried: 0\n" +
-					"cmd-put: 0\n" +
-					"cmd-peek: 0\n" +
-					"cmd-peek-ready: 0\n" +
-					"cmd-peek-delayed: 0\n" +
-					"cmd-peek-buried: 0\n" +
-					"cmd-reserve: 0\n" +
-					"cmd-reserve-with-timeout: 0\n" +
-					"cmd-delete: 0\n" +
-					"cmd-release: 0\n" +
-					"cmd-use: 0\n" +
-					"cmd-watch: 0\n" +
-					"cmd-ignore: 0\n" +
-					"cmd-bury: 0\n" +
-					"cmd-kick: 0\n" +
-					"cmd-touch: 0\n" +
+					"current-jobs-urgent: 1\n" +
+					"current-jobs-ready: 1\n" +
+					"current-jobs-reserved: 1\n" +
+					"current-jobs-delayed: 1\n" +
+					"current-jobs-buried: 1\n" +
+					"cmd-put: 1\n" +
+					"cmd-peek: 1\n" +
+					"cmd-peek-ready: 1\n" +
+					"cmd-peek-delayed: 1\n" +
+					"cmd-peek-buried: 1\n" +
+					"cmd-reserve: 1\n" +
+					"cmd-reserve-with-timeout: 1\n" +
+					"cmd-delete: 1\n" +
+					"cmd-release: 1\n" +
+					"cmd-use: 1\n" +
+					"cmd-watch: 1\n" +
+					"cmd-ignore: 1\n" +
+					"cmd-bury: 1\n" +
+					"cmd-kick: 1\n" +
+					"cmd-touch: 1\n" +
 					"cmd-stats: 1\n" +
-					"cmd-stats-job: 0\n" +
-					"cmd-stats-tube: 0\n" +
-					"cmd-list-tubes: 0\n" +
-					"cmd-list-tube-used: 0\n" +
-					"cmd-list-tubes-watched: 0\n" +
-					"cmd-pause-tube: 0\n" +
-					"job-timeouts: 0\n" +
-					"total-jobs: 0\n" +
+					"cmd-stats-job: 1\n" +
+					"cmd-stats-tube: 1\n" +
+					"cmd-list-tubes: 1\n" +
+					"cmd-list-tube-used: 1\n" +
+					"cmd-list-tubes-watched: 1\n" +
+					"cmd-pause-tube: 1\n" +
+					"job-timeouts: 10\n" +
+					"total-jobs: 25\n" +
 					"max-job-size: 65535\n" +
 					"current-tubes: 1\n" +
 					"current-connections: 3\n" +
-					"current-producers: 0\n" +
-					"current-workers: 0\n" +
-					"current-waiting: 0\n" +
+					"current-producers: 2\n" +
+					"current-workers: 5\n" +
+					"current-waiting: 1\n" +
 					"total-connections: 3\n" +
 					"pid: 1\n" +
 					"version: 1.10\n" +
 					"rusage-utime: 0.148125\n" +
 					"rusage-stime: 0.014812\n" +
 					"uptime: 1864\n" +
-					"binlog-oldest-index: 0\n" +
-					"binlog-current-index: 0\n" +
-					"binlog-records-migrated: 0\n" +
-					"binlog-records-written: 0\n" +
+					"binlog-oldest-index: 1\n" +
+					"binlog-current-index: 1\n" +
+					"binlog-records-migrated: 1\n" +
+					"binlog-records-written: 1\n" +
 					"binlog-max-size: 10485760\n" +
 					"id: f40521014b63360d\n" +
 					"hostname: 671db3de0474\n" +
 					"\r\n",
 			},
-		),
-	)
+		)
 
-	stats, err := c.Stats()
+		stats, err := c.Stats()
 
-	if err != nil {
-		t.Error(err)
-	}
+		require.Nil(t, err)
+		require.Equal(t, 1, stats.CurrentJobsUrgent)
+		require.Equal(t, 1, stats.CurrentJobsReady)
+		require.Equal(t, 1, stats.CurrentJobsReserved)
+		require.Equal(t, 1, stats.CurrentJobsDelayed)
+		require.Equal(t, 1, stats.CurrentJobsBuried)
+		require.Equal(t, 1, stats.CmdPut)
+		require.Equal(t, 1, stats.CmdPeek)
+		require.Equal(t, 1, stats.CmdPeekReady)
+		require.Equal(t, 1, stats.CmdPeekDelayed)
+		require.Equal(t, 1, stats.CmdPeekBuried)
+		require.Equal(t, 1, stats.CmdReserve)
+		require.Equal(t, 1, stats.CmdReserveWithTimeout)
+		require.Equal(t, 1, stats.CmdDelete)
+		require.Equal(t, 1, stats.CmdRelease)
+		require.Equal(t, 1, stats.CmdUse)
+		require.Equal(t, 1, stats.CmdWatch)
+		require.Equal(t, 1, stats.CmdIgnore)
+		require.Equal(t, 1, stats.CmdBury)
+		require.Equal(t, 1, stats.CmdKick)
+		require.Equal(t, 1, stats.CmdTouch)
+		require.Equal(t, 1, stats.CmdStats)
+		require.Equal(t, 1, stats.CmdStatsJob)
+		require.Equal(t, 1, stats.CmdStatsTube)
+		require.Equal(t, 1, stats.CmdListTubes)
+		require.Equal(t, 1, stats.CmdListTubeUsed)
+		require.Equal(t, 1, stats.CmdListTubesWatched)
+		require.Equal(t, 1, stats.CmdPauseTube)
+		require.Equal(t, 10, stats.JobTimeouts)
+		require.Equal(t, 25, stats.TotalJobs)
+		require.Equal(t, 65535, stats.MaxJobSize)
+		require.Equal(t, 1, stats.CurrentTubes)
+		require.Equal(t, 3, stats.CurrentConnections)
+		require.Equal(t, 2, stats.CurrentProducers)
+		require.Equal(t, 5, stats.CurrentWorkers)
+		require.Equal(t, 1, stats.CurrentWaiting)
+		require.Equal(t, 3, stats.TotalConnections)
+		require.Equal(t, 1, stats.PID)
+		require.Equal(t, "1.10", stats.Version)
+		require.Equal(t, 0.148125, stats.RUsageUTime)
+		require.Equal(t, 0.014812, stats.RUsageSTime)
+		require.Equal(t, 1864, stats.Uptime)
+		require.Equal(t, 1, stats.BinlogOldestIndex)
+		require.Equal(t, 1, stats.BinlogCurrentIndex)
+		require.Equal(t, 1, stats.BinlogRecordsMigrated)
+		require.Equal(t, 1, stats.BinlogRecordsWritten)
+		require.Equal(t, 10485760, stats.BinlogMaxSize)
+		require.Equal(t, "f40521014b63360d", stats.ID)
+		require.Equal(t, "671db3de0474", stats.Hostname)
 
-	if stats.PID != 1 {
-		t.Fatal("expected 1, but got", stats.PID)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	t.Run("ok / failure", func(t *testing.T) {
+		c := mock.NewClient(
+			[]string{"stats\r\n"},
+			[]string{
+				"OK 6\r\n" +
+					"---\n" +
+					"test\n" +
+					"\r\n",
+			},
+		)
+
+		_, err := c.Stats()
+
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "cannot unmarshal")
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"stats\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.Stats()
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_ListTubes(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
+	t.Run("ok / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"list-tubes\r\n"}, []string{"OK 21\r\n---\n- default\n- test\n\r\n"})
+
+		tubes, err := c.ListTubes()
+
+		require.Nil(t, err)
+		require.ElementsMatch(t, []string{"default", "test"}, tubes)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("ok / failure", func(t *testing.T) {
+		c := mock.NewClient(
+			[]string{"list-tubes\r\n"},
 			[]string{
-				"list-tubes\r\n",
+				"OK 6\r\n" +
+					"---\n" +
+					"test\n" +
+					"\r\n",
 			},
-			[]string{
-				"OK 21\r\n---\n- default\n- test\n\r\n",
-			},
-		),
-	)
+		)
 
-	tubes, err := c.ListTubes()
+		_, err := c.ListTubes()
 
-	if err != nil {
-		t.Error(err)
-	}
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "cannot unmarshal")
 
-	if !reflect.DeepEqual([]string{"default", "test"}, tubes) {
-		t.Fatal(fmt.Sprintf("expected 'default, test', but got '%s'", strings.Join(tubes, ", ")))
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"list-tubes\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.ListTubes()
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_ListTubeUsed(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"list-tube-used\r\n",
-			},
-			[]string{
-				"USING test\r\n",
-			},
-		),
-	)
+	t.Run("using / unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"list-tube-used\r\n"}, []string{"USING\r\n"})
 
-	tube, err := c.ListTubeUsed()
+		_, err := c.ListTubeUsed()
 
-	if err != nil {
-		t.Error(err)
-	}
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
 
-	if !strings.EqualFold("test", tube) {
-		t.Fatal(fmt.Sprintf("expected 'test', but got '%s'", tube))
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	t.Run("using / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"list-tube-used\r\n"}, []string{"USING test\r\n"})
+
+		tube, err := c.ListTubeUsed()
+
+		require.Nil(t, err)
+		require.Equal(t, "test", tube)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"list-tube-used\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.ListTubeUsed()
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_ListTubesWatched(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
+	t.Run("ok / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"list-tubes-watched\r\n"}, []string{"OK 14\r\n---\n- default\n\r\n"})
+
+		tubes, err := c.ListTubesWatched()
+
+		require.Nil(t, err)
+		require.ElementsMatch(t, []string{"default"}, tubes)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("ok / failure", func(t *testing.T) {
+		c := mock.NewClient(
+			[]string{"list-tubes-watched\r\n"},
 			[]string{
-				"list-tubes-watched\r\n",
+				"OK 6\r\n" +
+					"---\n" +
+					"test\n" +
+					"\r\n",
 			},
-			[]string{
-				"OK 14\r\n---\n- default\n\r\n",
-			},
-		),
-	)
+		)
 
-	tubes, err := c.ListTubesWatched()
+		_, err := c.ListTubesWatched()
 
-	if err != nil {
-		t.Error(err)
-	}
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "cannot unmarshal")
 
-	if !reflect.DeepEqual([]string{"default"}, tubes) {
-		t.Fatal(fmt.Sprintf("expected 'default', but got '%s'", strings.Join(tubes, ", ")))
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"list-tubes-watched\r\n"}, []string{"TEST\r\n"})
+
+		_, err := c.ListTubesWatched()
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 func TestClient_PauseTube(t *testing.T) {
-	c := beanstalk.NewClient(
-		beanstalk.NewMockConn(
-			[]string{
-				"pause-tube test 60\r\n",
-				"pause-tube test 0\r\n",
-			},
-			[]string{
-				"NOT_FOUND\r\n",
-				"PAUSED\r\n",
-			},
-		),
-	)
+	t.Run("paused / success", func(t *testing.T) {
+		c := mock.NewClient([]string{"pause-tube test 60\r\n"}, []string{"PAUSED\r\n"})
 
-	if err := c.PauseTube("test", 1*time.Minute); err != beanstalk.ErrNotFound {
-		t.Fatal("expected not found error, but got", err)
-	}
+		err := c.PauseTube("test", 60*time.Second)
 
-	err := c.PauseTube("test", 0)
+		require.Nil(t, err)
 
-	if err != nil {
-		t.Error(err)
-	}
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
 
-	if err = c.Close(); err != nil {
-		t.Error(err)
-	}
+	t.Run("not found", func(t *testing.T) {
+		c := mock.NewClient([]string{"pause-tube test 10\r\n"}, []string{"NOT_FOUND\r\n"})
+
+		err := c.PauseTube("test", 10*time.Second)
+
+		require.Equal(t, beanstalk.ErrNotFound, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unexpected response", func(t *testing.T) {
+		c := mock.NewClient([]string{"pause-tube test 0\r\n"}, []string{"TEST\r\n"})
+
+		err := c.PauseTube("test", 0)
+
+		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestClient_ExecuteCommand(t *testing.T) {
+	t.Run("write failure", func(t *testing.T) {
+		c := mock.NewClient(nil, nil)
+
+		_, err := c.ExecuteCommand(mockCommand{})
+
+		require.Equal(t, io.EOF, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("read failure", func(t *testing.T) {
+		c := mock.NewClient([]string{"mock\r\n"}, nil)
+
+		_, err := c.ExecuteCommand(mockCommand{})
+
+		require.Equal(t, io.EOF, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("out of memory", func(t *testing.T) {
+		c := mock.NewClient([]string{"mock\r\n"}, []string{"OUT_OF_MEMORY\r\n"})
+
+		_, err := c.ExecuteCommand(mockCommand{})
+
+		require.Equal(t, beanstalk.ErrOutOfMemory, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("internal error", func(t *testing.T) {
+		c := mock.NewClient([]string{"mock\r\n"}, []string{"INTERNAL_ERROR\r\n"})
+
+		_, err := c.ExecuteCommand(mockCommand{})
+
+		require.Equal(t, beanstalk.ErrInternalError, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("bad format", func(t *testing.T) {
+		c := mock.NewClient([]string{"mock\r\n"}, []string{"BAD_FORMAT\r\n"})
+
+		_, err := c.ExecuteCommand(mockCommand{})
+
+		require.Equal(t, beanstalk.ErrBadFormat, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("unknown command", func(t *testing.T) {
+		c := mock.NewClient([]string{"mock\r\n"}, []string{"UNKNOWN_COMMAND\r\n"})
+
+		_, err := c.ExecuteCommand(mockCommand{})
+
+		require.Equal(t, beanstalk.ErrUnknownCommand, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("malformed command", func(t *testing.T) {
+		c := mock.NewClient([]string{"mock\r\n"}, []string{"MALFORMED\r\n"})
+
+		_, err := c.ExecuteCommand(mockCommand{})
+
+		require.Equal(t, beanstalk.ErrMalformedCommand, err)
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("use", func(t *testing.T) {
+		c := mock.NewClient([]string{"mock\r\n"}, []string{"OK\r\n"})
+
+		require.Equal(t, int64(0), c.UsedAt().Unix())
+
+		_, _ = c.ExecuteCommand(mockCommand{})
+
+		require.NotEqual(t, int64(0), c.UsedAt().Unix())
+
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+// mock command
+
+type mockCommand struct{}
+
+func (c mockCommand) CommandLine() string {
+	return "mock"
+}
+
+func (c mockCommand) Body() []byte {
+	return nil
+}
+
+func (c mockCommand) HasResponseBody() bool {
+	return false
 }

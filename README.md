@@ -14,7 +14,7 @@ go get github.com/IvanLutokhin/go-beanstalk
 
 ## Quick Start
 
-Producer:
+### Producer:
 
 ```go
 c, err := beanstalk.Dial("tcp", "127.0.0.1:11300")
@@ -30,7 +30,7 @@ if err != nil {
 fmt.Println(id) // output job id
 ```
 
-Consumer:
+### Consumer:
 ```go
 c, err := beanstalk.Dial("tcp", "127.0.0.1:11300")
 if err != nil {
@@ -46,19 +46,22 @@ fmt.Println(job.ID) // output job id
 fmt.Println(job.Data) // output job data
 ```
 
-Pool:
+### Pool:
 ```go
-p, err := beanstalk.NewDefaultPool("127.0.0.1:11300", 5, false)
-if err != nil {
-	panic(err)
-}
+p := beanstalk.NewPool(&beanstalk.PoolOptions{
+	Dialer: func () (*Client, error) { return beanstalk.Dial("127.0.0.1:11300") },
+	Logger: beanstalk.NopLogger,
+	Capacity: 5,
+	MaxAge: 0,
+	IdleTimeout: 0,
+})
 
 // establish connections
 if err = p.Open(); err != nil {
 	panic(err)
 }
 
-// retrieve connection
+// retrieve client
 c, err := p.Get()
 if err != nil {
 	panic(err)
@@ -70,7 +73,7 @@ if err != nil {
 	panic(err)
 }
 
-// return connection
+// return client
 if err = p.Put(c); err != nil {
 	panic(err)
 }
@@ -80,5 +83,44 @@ if err = p.Close(); err != nil {
 	panic(err)
 }
 ```
+
+### HTTP Handler
+```go
+func GetServerStats() beanstalk.Handler {
+	return beanstalk.HandlerFunc(func(c *beanstalk.Client, w http.ResponseWriter, r *http.Request) {
+		stats, err := c.Stats()
+		if err != nil {
+			panic(err)
+		}
+		
+		bytes, err := json.Marshal(v)
+		if err != nil {
+			panic(err)
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(bytes)
+	})
+}
+
+func main() {
+    p := beanstalk.NewPool(&beanstalk.PoolOptions{
+        Dialer: func () (*Client, error) { return beanstalk.Dial("127.0.0.1:11300") },
+        Logger: beanstalk.NopLogger,
+        Capacity: 5,
+        MaxAge: 0,
+        IdleTimeout: 0,
+    })
+
+    if err := p.Open(); err != nil {
+        panic(err)
+    }
+	
+    http.Handle("/stats", NewHTTPHandlerAdapter(p, GetServerStats()))
+    http.ListenAndServe(":8090", nil)	
+}
+```
+
 ## License
 [The MIT License (MIT)](LICENSE)
