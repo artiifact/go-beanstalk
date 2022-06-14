@@ -1,6 +1,7 @@
 package beanstalk
 
 import (
+	"github.com/IvanLutokhin/go-beanstalk/internal/checker"
 	"io"
 	"net/textproto"
 	"strconv"
@@ -10,42 +11,50 @@ import (
 var crnl = []byte{'\r', '\n'}
 
 type Conn struct {
-	Text *textproto.Conn
+	conn    *textproto.Conn
+	checker *checker.Checker
 }
 
-func NewConn(conn *textproto.Conn) *Conn {
-	return &Conn{conn}
+func NewConn(conn io.ReadWriteCloser) *Conn {
+	return &Conn{
+		conn:    textproto.NewConn(conn),
+		checker: checker.NewChecker(conn),
+	}
 }
 
 func (c *Conn) Close() error {
-	return c.Text.Close()
+	return c.conn.Close()
+}
+
+func (c *Conn) Check() error {
+	return c.checker.Check()
 }
 
 func (c *Conn) WriteRequest(line string, body []byte) (uint, error) {
-	id := c.Text.Next()
+	id := c.conn.Next()
 
-	c.Text.StartRequest(id)
-	defer c.Text.EndRequest(id)
+	c.conn.StartRequest(id)
+	defer c.conn.EndRequest(id)
 
-	if _, err := c.Text.W.Write([]byte(line)); err != nil {
+	if _, err := c.conn.W.Write([]byte(line)); err != nil {
 		return 0, err
 	}
 
-	if _, err := c.Text.W.Write(crnl); err != nil {
+	if _, err := c.conn.W.Write(crnl); err != nil {
 		return 0, err
 	}
 
 	if body != nil {
-		if _, err := c.Text.W.Write(body); err != nil {
+		if _, err := c.conn.W.Write(body); err != nil {
 			return 0, err
 		}
 
-		if _, err := c.Text.W.Write(crnl); err != nil {
+		if _, err := c.conn.W.Write(crnl); err != nil {
 			return 0, err
 		}
 	}
 
-	if err := c.Text.W.Flush(); err != nil {
+	if err := c.conn.W.Flush(); err != nil {
 		return 0, err
 	}
 
@@ -53,10 +62,10 @@ func (c *Conn) WriteRequest(line string, body []byte) (uint, error) {
 }
 
 func (c *Conn) ReadResponse(id uint, hasBody bool) (string, []byte, error) {
-	c.Text.StartResponse(id)
-	defer c.Text.EndResponse(id)
+	c.conn.StartResponse(id)
+	defer c.conn.EndResponse(id)
 
-	line, err := c.Text.ReadLine()
+	line, err := c.conn.ReadLine()
 	if err != nil {
 		return line, nil, err
 	}
@@ -74,7 +83,7 @@ func (c *Conn) ReadResponse(id uint, hasBody bool) (string, []byte, error) {
 		}
 
 		body = make([]byte, n+2) // include CR NL
-		if _, err = io.ReadFull(c.Text.R, body); err != nil {
+		if _, err = io.ReadFull(c.conn.R, body); err != nil {
 			return line, body, err
 		}
 
