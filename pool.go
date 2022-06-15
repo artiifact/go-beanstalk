@@ -130,20 +130,24 @@ func (p *Pool) Get() (*Client, error) {
 			break
 		}
 
+		p.options.Logger.Log(DebugLogLevel, "Tries to fetch client", nil)
+
 		p.mutex.Lock()
 		client := p.clients[0]
 		p.clients = append(p.clients[:0], p.clients[1:]...)
 		p.mutex.Unlock()
 
-		p.options.Logger.Log(DebugLogLevel, "Client was fetched", nil)
-
 		if !p.checkClient(client) {
+			p.options.Logger.Log(DebugLogLevel, "Closes stale client", nil)
+
 			if err := client.Close(); err != nil {
 				p.options.Logger.Log(ErrorLogLevel, "Failed to close client", map[string]interface{}{"error": err})
 			}
 
 			continue
 		}
+
+		p.options.Logger.Log(DebugLogLevel, "Client was fetched", nil)
 
 		return client, nil
 	}
@@ -160,6 +164,8 @@ func (p *Pool) Put(client *Client) error {
 		return ErrClosedPool
 	}
 
+	p.options.Logger.Log(DebugLogLevel, "Tries to return client", nil)
+
 	if p.Len() >= p.options.Capacity || !p.checkClient(client) {
 		p.options.Logger.Log(DebugLogLevel, "Closes stale client", nil)
 
@@ -173,6 +179,8 @@ func (p *Pool) Put(client *Client) error {
 	p.mutex.Lock()
 	p.clients = append(p.clients, client)
 	p.mutex.Unlock()
+
+	p.options.Logger.Log(DebugLogLevel, "Client was returned", nil)
 
 	return nil
 }
