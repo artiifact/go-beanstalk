@@ -1223,12 +1223,11 @@ func TestClient_Stats(t *testing.T) {
 					"cmd-peek-delayed: 1\n" +
 					"cmd-peek-buried: 1\n" +
 					"cmd-reserve: 1\n" +
-					"cmd-reserve-with-timeout: 1\n" +
-					"cmd-delete: 1\n" +
-					"cmd-release: 1\n" +
 					"cmd-use: 1\n" +
 					"cmd-watch: 1\n" +
 					"cmd-ignore: 1\n" +
+					"cmd-delete: 1\n" +
+					"cmd-release: 1\n" +
 					"cmd-bury: 1\n" +
 					"cmd-kick: 1\n" +
 					"cmd-touch: 1\n" +
@@ -1278,7 +1277,6 @@ func TestClient_Stats(t *testing.T) {
 		require.Equal(t, 1, stats.CmdPeekDelayed)
 		require.Equal(t, 1, stats.CmdPeekBuried)
 		require.Equal(t, 1, stats.CmdReserve)
-		require.Equal(t, 1, stats.CmdReserveWithTimeout)
 		require.Equal(t, 1, stats.CmdDelete)
 		require.Equal(t, 1, stats.CmdRelease)
 		require.Equal(t, 1, stats.CmdUse)
