@@ -3,26 +3,24 @@ package beanstalk_test
 import (
 	"context"
 	"github.com/IvanLutokhin/go-beanstalk"
-	"github.com/IvanLutokhin/go-beanstalk/pkg/mock"
+	"github.com/IvanLutokhin/go-beanstalk/mock"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
 
-func TestNewPool(t *testing.T) {
+func TestNewDefaultPool(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 		})
 
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 1, pool.Len())
 
@@ -33,32 +31,21 @@ func TestNewPool(t *testing.T) {
 		require.NotNil(t, client)
 
 		// puts client in pool
-		err = pool.Put(client)
-
-		require.Nil(t, err)
+		require.NoError(t, pool.Put(client))
 
 		// closes pool
-		if err := pool.Close(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Close(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 	})
 
 	t.Run("dialer not specified", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Logger:      beanstalk.NopLogger,
-			Capacity:    3,
-			MaxAge:      0,
-			IdleTimeout: 0,
-		})
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{})
 
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 
@@ -69,19 +56,17 @@ func TestNewPool(t *testing.T) {
 		require.Nil(t, client)
 
 		// closes pool
-		if err := pool.Close(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Close(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 	})
 }
 
-func TestPool_Open(t *testing.T) {
+func TestDefaultPool_Open(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    3,
@@ -93,16 +78,13 @@ func TestPool_Open(t *testing.T) {
 
 		defer cancel()
 
-		err := pool.Open(ctx)
-
-		require.NotNil(t, err)
-		require.Contains(t, err.Error(), "deadline exceeded")
+		require.Error(t, pool.Open(ctx))
 	})
 
 	t.Run("already opened", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    3,
@@ -113,24 +95,22 @@ func TestPool_Open(t *testing.T) {
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 3, pool.Len())
 
 		// retries to open pool
-		err := pool.Open(context.Background())
+		require.Error(t, pool.Open(context.Background()))
 
-		require.Equal(t, beanstalk.ErrAlreadyOpenedPool, err)
+		require.Equal(t, 3, pool.Len())
 	})
 }
 
-func TestPool_Close(t *testing.T) {
+func TestDefaultPool_Close(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    5,
@@ -141,9 +121,7 @@ func TestPool_Close(t *testing.T) {
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 5, pool.Len())
 
@@ -152,16 +130,13 @@ func TestPool_Close(t *testing.T) {
 
 		defer cancel()
 
-		err := pool.Close(ctx)
-
-		require.NotNil(t, err)
-		require.Contains(t, err.Error(), "deadline exceeded")
+		require.Error(t, pool.Close(ctx))
 	})
 
 	t.Run("closed", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    5,
@@ -172,31 +147,25 @@ func TestPool_Close(t *testing.T) {
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 5, pool.Len())
 
 		// closes pool
-		if err := pool.Close(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Close(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 
 		// retries to close pool
-		err := pool.Close(context.Background())
-
-		require.Equal(t, beanstalk.ErrClosedPool, err)
+		require.Error(t, pool.Close(context.Background()))
 	})
 }
 
-func TestPool_Get(t *testing.T) {
+func TestDefaultPool_Get(t *testing.T) {
 	t.Run("max age", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
@@ -207,9 +176,7 @@ func TestPool_Get(t *testing.T) {
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 1, pool.Len())
 
@@ -223,17 +190,15 @@ func TestPool_Get(t *testing.T) {
 		require.NotNil(t, client)
 
 		// closes pool
-		if err := pool.Close(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Close(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 	})
 
 	t.Run("idle timeout", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
@@ -244,9 +209,7 @@ func TestPool_Get(t *testing.T) {
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 1, pool.Len())
 
@@ -260,17 +223,15 @@ func TestPool_Get(t *testing.T) {
 		require.NotNil(t, client)
 
 		// closes pool
-		if err := pool.Close(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Close(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 	})
 
 	t.Run("closed", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				client := mock.NewClient(nil, nil)
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				client := beanstalk.NewDefaultClient(mock.NewConn(nil, nil))
 				if err := client.Close(); err != nil {
 					t.Fatal(err)
 				}
@@ -286,9 +247,7 @@ func TestPool_Get(t *testing.T) {
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 1, pool.Len())
 
@@ -299,19 +258,17 @@ func TestPool_Get(t *testing.T) {
 		require.NotNil(t, client)
 
 		// closes pool
-		if err := pool.Close(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Close(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 	})
 }
 
-func TestPool_Put(t *testing.T) {
+func TestDefaultPool_Put(t *testing.T) {
 	t.Run("closed pool", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
@@ -322,9 +279,7 @@ func TestPool_Put(t *testing.T) {
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 1, pool.Len())
 
@@ -335,22 +290,18 @@ func TestPool_Put(t *testing.T) {
 		require.NotNil(t, client)
 
 		// closes pool
-		if err := pool.Close(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Close(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 
 		// puts client in closed pool
-		err = pool.Put(client)
-
-		require.Equal(t, beanstalk.ErrClosedPool, err)
+		require.Error(t, pool.Put(client))
 	})
 
 	t.Run("closed client", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
@@ -361,9 +312,7 @@ func TestPool_Put(t *testing.T) {
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 1, pool.Len())
 
@@ -373,28 +322,23 @@ func TestPool_Put(t *testing.T) {
 		require.Nil(t, err)
 		require.NotNil(t, client)
 
-		if err := client.Close(); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, client.Close())
 
 		// puts client in pool
-		err = pool.Put(client)
+		require.NoError(t, pool.Put(client))
 
-		require.Nil(t, err)
 		require.Equal(t, 0, pool.Len())
 
 		// closes pool
-		if err := pool.Close(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Close(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 	})
 
 	t.Run("max capacity", func(t *testing.T) {
-		pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.Client, error) {
-				return mock.NewClient(nil, nil), nil
+		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+			Dialer: func() (*beanstalk.DefaultClient, error) {
+				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
@@ -405,9 +349,7 @@ func TestPool_Put(t *testing.T) {
 		require.Equal(t, 0, pool.Len())
 
 		// opens pool
-		if err := pool.Open(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Open(context.Background()))
 
 		require.Equal(t, 1, pool.Len())
 
@@ -421,15 +363,12 @@ func TestPool_Put(t *testing.T) {
 		time.Sleep(1 * time.Second)
 
 		// puts client in pool
-		err = pool.Put(client)
+		require.NoError(t, pool.Put(client))
 
-		require.Nil(t, err)
 		require.Equal(t, 1, pool.Len())
 
 		// closes pool
-		if err := pool.Close(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, pool.Close(context.Background()))
 
 		require.Equal(t, 0, pool.Len())
 	})

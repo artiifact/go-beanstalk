@@ -6,6 +6,6 @@ type Checker struct {
 	conn io.ReadWriteCloser
 }
 
-func NewChecker(conn io.ReadWriteCloser) *Checker {
+func New(conn io.ReadWriteCloser) *Checker {
 	return &Checker{conn: conn}
 }
