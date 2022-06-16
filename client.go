@@ -42,7 +42,7 @@ type Client interface {
 	PauseTube(tube string, delay time.Duration) error
 }
 
-func Dial(address string) (Client, error) {
+func Dial(address string) (*DefaultClient, error) {
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err
