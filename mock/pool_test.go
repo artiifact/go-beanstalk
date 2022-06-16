@@ -8,6 +8,12 @@ import (
 	"testing"
 )
 
+func TestNewPool(t *testing.T) {
+	p := mock.NewPool(nil)
+
+	require.NotNil(t, p)
+}
+
 func TestPool_Open(t *testing.T) {
 	p := &mock.Pool{}
 	p.On("Open", context.Background()).Return(nil)

@@ -10,6 +10,17 @@ type Pool struct {
 	mock.Mock
 }
 
+func NewPool(client *Client) *Pool {
+	pool := &Pool{}
+	pool.On("Open", Anything).Return(nil)
+	pool.On("Close", Anything).Return(nil)
+	pool.On("Get").Return(client, nil)
+	pool.On("Put", client).Return(nil)
+	pool.On("Len", Anything).Return(1)
+
+	return pool
+}
+
 func (p *Pool) Open(ctx context.Context) error {
 	args := p.Called(ctx)
 
