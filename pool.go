@@ -13,26 +13,35 @@ var (
 	ErrAlreadyOpenedPool  = errors.New("beanstalk: pool: already opened")
 	ErrClosedPool         = errors.New("beanstalk: pool: closed")
 	ErrDialerNotSpecified = errors.New("beanstalk: pool: dialer not specified")
+	ErrIllegalClient      = errors.New("beanstalk: pool: illegal client")
 )
 
+type Pool interface {
+	Open(ctx context.Context) error
+	Close(ctx context.Context) error
+	Get() (Client, error)
+	Put(client Client) error
+	Len() int
+}
+
 type PoolOptions struct {
-	Dialer      func() (*Client, error)
+	Dialer      func() (*DefaultClient, error)
 	Logger      Logger
 	Capacity    int
 	MaxAge      time.Duration
 	IdleTimeout time.Duration
 }
 
-type Pool struct {
+type DefaultPool struct {
 	options   *PoolOptions
-	clients   []*Client
+	clients   []*DefaultClient
 	triggerCh chan struct{}
 	closeCh   chan struct{}
 	closed    int32
 	mutex     sync.RWMutex
 }
 
-func NewPool(options *PoolOptions) *Pool {
+func NewDefaultPool(options *PoolOptions) *DefaultPool {
 	if options.Logger == nil {
 		options.Logger = NopLogger
 	}
@@ -41,16 +50,24 @@ func NewPool(options *PoolOptions) *Pool {
 		options.Capacity = 1
 	}
 
-	return &Pool{
+	if options.MaxAge < 0 {
+		options.MaxAge = 0
+	}
+
+	if options.IdleTimeout < 0 {
+		options.IdleTimeout = 0
+	}
+
+	return &DefaultPool{
 		options:   options,
-		clients:   make([]*Client, 0, options.Capacity),
+		clients:   make([]*DefaultClient, 0, options.Capacity),
 		triggerCh: make(chan struct{}),
 		closeCh:   make(chan struct{}),
 		closed:    1,
 	}
 }
 
-func (p *Pool) Open(ctx context.Context) error {
+func (p *DefaultPool) Open(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&p.closed, 1, 0) {
 		return ErrAlreadyOpenedPool
 	}
@@ -87,7 +104,7 @@ func (p *Pool) Open(ctx context.Context) error {
 	}
 }
 
-func (p *Pool) Close(ctx context.Context) error {
+func (p *DefaultPool) Close(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&p.closed, 0, 1) {
 		return ErrClosedPool
 	}
@@ -100,6 +117,8 @@ func (p *Pool) Close(ctx context.Context) error {
 		defer close(doneCh)
 
 		p.mutex.Lock()
+		defer p.mutex.Unlock()
+
 		for _, client := range p.clients {
 			if err := client.Close(); err != nil {
 				p.options.Logger.Log(ErrorLogLevel, "Failed to close client", map[string]interface{}{"error": err})
@@ -107,7 +126,6 @@ func (p *Pool) Close(ctx context.Context) error {
 		}
 
 		p.clients = p.clients[:0]
-		p.mutex.Unlock()
 	}()
 
 	select {
@@ -120,7 +138,7 @@ func (p *Pool) Close(ctx context.Context) error {
 	}
 }
 
-func (p *Pool) Get() (*Client, error) {
+func (p *DefaultPool) Get() (Client, error) {
 	if p.isClosed() {
 		return nil, ErrClosedPool
 	}
@@ -159,17 +177,24 @@ func (p *Pool) Get() (*Client, error) {
 	return p.createClient()
 }
 
-func (p *Pool) Put(client *Client) error {
+func (p *DefaultPool) Put(client Client) error {
 	if p.isClosed() {
 		return ErrClosedPool
 	}
 
 	p.options.Logger.Log(DebugLogLevel, "Tries to return client", nil)
 
-	if p.Len() >= p.options.Capacity || !p.checkClient(client) {
+	defaultClient, ok := client.(*DefaultClient)
+	if !ok {
+		p.options.Logger.Log(DebugLogLevel, "Failed to return client", map[string]interface{}{"error": ErrIllegalClient})
+
+		return ErrIllegalClient
+	}
+
+	if p.Len() >= p.options.Capacity || !p.checkClient(defaultClient) {
 		p.options.Logger.Log(DebugLogLevel, "Closes stale client", nil)
 
-		if err := client.Close(); err != nil {
+		if err := defaultClient.Close(); err != nil {
 			p.options.Logger.Log(ErrorLogLevel, "Failed to close client", map[string]interface{}{"error": err})
 		}
 
@@ -177,7 +202,7 @@ func (p *Pool) Put(client *Client) error {
 	}
 
 	p.mutex.Lock()
-	p.clients = append(p.clients, client)
+	p.clients = append(p.clients, defaultClient)
 	p.mutex.Unlock()
 
 	p.options.Logger.Log(DebugLogLevel, "Client was returned", nil)
@@ -185,18 +210,18 @@ func (p *Pool) Put(client *Client) error {
 	return nil
 }
 
-func (p *Pool) Len() int {
+func (p *DefaultPool) Len() int {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
 	return len(p.clients)
 }
 
-func (p *Pool) isClosed() bool {
+func (p *DefaultPool) isClosed() bool {
 	return atomic.LoadInt32(&p.closed) == 1
 }
 
-func (p *Pool) refillClients() {
+func (p *DefaultPool) refillClients() {
 	ticker := time.NewTicker(60 * time.Second)
 
 	defer ticker.Stop()
@@ -226,7 +251,7 @@ func (p *Pool) refillClients() {
 	}
 }
 
-func (p *Pool) createClient() (*Client, error) {
+func (p *DefaultPool) createClient() (*DefaultClient, error) {
 	if p.options.Dialer == nil {
 		return nil, ErrDialerNotSpecified
 	}
@@ -234,7 +259,7 @@ func (p *Pool) createClient() (*Client, error) {
 	return p.options.Dialer()
 }
 
-func (p *Pool) createAndPutClient() {
+func (p *DefaultPool) createAndPutClient() {
 	client, err := p.createClient()
 	if err != nil {
 		p.options.Logger.Log(ErrorLogLevel, "Failed to create client", map[string]interface{}{"error": err})
@@ -260,7 +285,7 @@ func (p *Pool) createAndPutClient() {
 	p.clients = append(p.clients, client)
 }
 
-func (p *Pool) checkClient(client *Client) bool {
+func (p *DefaultPool) checkClient(client *DefaultClient) bool {
 	now := time.Now()
 
 	if p.options.MaxAge > 0 && now.Sub(client.CreatedAt()) >= p.options.MaxAge {

@@ -1,27 +1,29 @@
 package beanstalk
 
-import "net/http"
+import (
+	"net/http"
+)
 
 // Handler
 
 type Handler interface {
-	ServeHTTP(client *Client, writer http.ResponseWriter, request *http.Request)
+	ServeHTTP(client Client, writer http.ResponseWriter, request *http.Request)
 }
 
-type HandlerFunc func(client *Client, writer http.ResponseWriter, request *http.Request)
+type HandlerFunc func(client Client, writer http.ResponseWriter, request *http.Request)
 
-func (f HandlerFunc) ServeHTTP(client *Client, writer http.ResponseWriter, request *http.Request) {
+func (f HandlerFunc) ServeHTTP(client Client, writer http.ResponseWriter, request *http.Request) {
 	f(client, writer, request)
 }
 
 // Adapter
 
 type HTTPHandlerAdapter struct {
-	pool    *Pool
+	pool    Pool
 	handler Handler
 }
 
-func NewHTTPHandlerAdapter(pool *Pool, handler Handler) *HTTPHandlerAdapter {
+func NewHTTPHandlerAdapter(pool Pool, handler Handler) *HTTPHandlerAdapter {
 	return &HTTPHandlerAdapter{
 		pool:    pool,
 		handler: handler,

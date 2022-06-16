@@ -3,7 +3,7 @@ package beanstalk_test
 import (
 	"context"
 	"github.com/IvanLutokhin/go-beanstalk"
-	"github.com/IvanLutokhin/go-beanstalk/pkg/mock"
+	"github.com/IvanLutokhin/go-beanstalk/mock"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -11,9 +11,9 @@ import (
 )
 
 func TestHTTPHandlerAdapter_ServeHTTP(t *testing.T) {
-	pool := beanstalk.NewPool(&beanstalk.PoolOptions{
-		Dialer: func() (*beanstalk.Client, error) {
-			return mock.NewClient(nil, nil), nil
+	pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+		Dialer: func() (*beanstalk.DefaultClient, error) {
+			return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
 		},
 		Logger:      beanstalk.NopLogger,
 		Capacity:    1,
@@ -21,7 +21,7 @@ func TestHTTPHandlerAdapter_ServeHTTP(t *testing.T) {
 		IdleTimeout: 0,
 	})
 
-	handler := beanstalk.HandlerFunc(func(client *beanstalk.Client, writer http.ResponseWriter, request *http.Request) {
+	handler := beanstalk.HandlerFunc(func(client beanstalk.Client, writer http.ResponseWriter, request *http.Request) {
 		require.NotNil(t, client)
 
 		writer.WriteHeader(http.StatusOK)
@@ -57,9 +57,9 @@ func TestHTTPHandlerAdapter_ServeHTTP(t *testing.T) {
 		}
 
 		adapter.ServeHTTP(recorder, request)
-	})
 
-	if err := pool.Close(context.Background()); err != nil {
-		t.Fatal(err)
-	}
+		if err := pool.Close(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	})
 }

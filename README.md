@@ -48,8 +48,8 @@ fmt.Println(job.Data) // output job data
 
 ### Pool:
 ```go
-p := beanstalk.NewPool(&beanstalk.PoolOptions{
-	Dialer: func () (*Client, error) { return beanstalk.Dial("127.0.0.1:11300") },
+p := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+	Dialer: func () (*beanstalk.DefaultClient, error) { return beanstalk.Dial("127.0.0.1:11300") },
 	Logger: beanstalk.NopLogger,
 	Capacity: 5,
 	MaxAge: 0,
@@ -87,7 +87,7 @@ if err = p.Close(); err != nil {
 ### HTTP Handler
 ```go
 func GetServerStats() beanstalk.Handler {
-	return beanstalk.HandlerFunc(func(c *beanstalk.Client, w http.ResponseWriter, r *http.Request) {
+	return beanstalk.HandlerFunc(func(c beanstalk.Client, w http.ResponseWriter, r *http.Request) {
 		stats, err := c.Stats()
 		if err != nil {
 			panic(err)
@@ -105,8 +105,8 @@ func GetServerStats() beanstalk.Handler {
 }
 
 func main() {
-    p := beanstalk.NewPool(&beanstalk.PoolOptions{
-        Dialer: func () (*Client, error) { return beanstalk.Dial("127.0.0.1:11300") },
+    p := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
+        Dialer: func () (*beanstalk.DefaultClient, error) { return beanstalk.Dial("127.0.0.1:11300") },
         Logger: beanstalk.NopLogger,
         Capacity: 5,
         MaxAge: 0,
@@ -117,7 +117,7 @@ func main() {
         panic(err)
     }
 	
-    http.Handle("/stats", NewHTTPHandlerAdapter(p, GetServerStats()))
+    http.Handle("/stats", beanstalk.NewHTTPHandlerAdapter(p, GetServerStats()))
     http.ListenAndServe(":8090", nil)	
 }
 ```

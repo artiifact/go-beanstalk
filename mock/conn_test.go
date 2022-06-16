@@ -1,7 +1,7 @@
 package mock_test
 
 import (
-	"github.com/IvanLutokhin/go-beanstalk/pkg/mock"
+	"github.com/IvanLutokhin/go-beanstalk/mock"
 	"github.com/stretchr/testify/require"
 	"io"
 	"testing"
@@ -45,9 +45,7 @@ func TestConn_Read(t *testing.T) {
 			require.Equal(t, item, string(b[:n]))
 		}
 
-		if err := conn.Close(); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, conn.Close())
 	})
 }
 
@@ -92,9 +90,7 @@ func TestConn_Write(t *testing.T) {
 			require.Equal(t, len(item), n)
 		}
 
-		if err := conn.Close(); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, conn.Close())
 	})
 }
 
@@ -102,24 +98,18 @@ func TestConn_Close(t *testing.T) {
 	t.Run("input not empty", func(t *testing.T) {
 		conn := mock.NewConn([]string{"test"}, nil)
 
-		err := conn.Close()
-
-		require.NotNil(t, err)
+		require.Error(t, conn.Close())
 	})
 
 	t.Run("output not empty", func(t *testing.T) {
 		conn := mock.NewConn(nil, []string{"test"})
 
-		err := conn.Close()
-
-		require.NotNil(t, err)
+		require.Error(t, conn.Close())
 	})
 
 	t.Run("success", func(t *testing.T) {
 		conn := mock.NewConn(nil, nil)
 
-		err := conn.Close()
-
-		require.Nil(t, err)
+		require.NoError(t, conn.Close())
 	})
 }
