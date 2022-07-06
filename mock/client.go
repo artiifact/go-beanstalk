@@ -28,22 +28,22 @@ func (c *Client) Use(tube string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-func (c *Client) Reserve() (beanstalk.Job, error) {
+func (c *Client) Reserve() (*beanstalk.Job, error) {
 	args := c.Called()
 
-	return args.Get(0).(beanstalk.Job), args.Error(1)
+	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
-func (c *Client) ReserveWithTimeout(timeout time.Duration) (beanstalk.Job, error) {
+func (c *Client) ReserveWithTimeout(timeout time.Duration) (*beanstalk.Job, error) {
 	args := c.Called(timeout)
 
-	return args.Get(0).(beanstalk.Job), args.Error(1)
+	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
-func (c *Client) ReserveJob(id int) (beanstalk.Job, error) {
+func (c *Client) ReserveJob(id int) (*beanstalk.Job, error) {
 	args := c.Called(id)
 
-	return args.Get(0).(beanstalk.Job), args.Error(1)
+	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
 func (c *Client) Delete(id int) error {
@@ -82,28 +82,28 @@ func (c *Client) Ignore(tube string) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
-func (c *Client) Peek(id int) (beanstalk.Job, error) {
+func (c *Client) Peek(id int) (*beanstalk.Job, error) {
 	args := c.Called(id)
 
-	return args.Get(0).(beanstalk.Job), args.Error(1)
+	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
-func (c *Client) PeekReady() (beanstalk.Job, error) {
+func (c *Client) PeekReady() (*beanstalk.Job, error) {
 	args := c.Called()
 
-	return args.Get(0).(beanstalk.Job), args.Error(1)
+	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
-func (c *Client) PeekDelayed() (beanstalk.Job, error) {
+func (c *Client) PeekDelayed() (*beanstalk.Job, error) {
 	args := c.Called()
 
-	return args.Get(0).(beanstalk.Job), args.Error(1)
+	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
-func (c *Client) PeekBuried() (beanstalk.Job, error) {
+func (c *Client) PeekBuried() (*beanstalk.Job, error) {
 	args := c.Called()
 
-	return args.Get(0).(beanstalk.Job), args.Error(1)
+	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
 func (c *Client) Kick(bound int) (int, error) {
@@ -118,22 +118,22 @@ func (c *Client) KickJob(id int) error {
 	return args.Error(0)
 }
 
-func (c *Client) StatsJob(id int) (beanstalk.StatsJob, error) {
+func (c *Client) StatsJob(id int) (*beanstalk.StatsJob, error) {
 	args := c.Called(id)
 
-	return args.Get(0).(beanstalk.StatsJob), args.Error(1)
+	return args.Get(0).(*beanstalk.StatsJob), args.Error(1)
 }
 
-func (c *Client) StatsTube(tube string) (beanstalk.StatsTube, error) {
+func (c *Client) StatsTube(tube string) (*beanstalk.StatsTube, error) {
 	args := c.Called(tube)
 
-	return args.Get(0).(beanstalk.StatsTube), args.Error(1)
+	return args.Get(0).(*beanstalk.StatsTube), args.Error(1)
 }
 
-func (c *Client) Stats() (beanstalk.Stats, error) {
+func (c *Client) Stats() (*beanstalk.Stats, error) {
 	args := c.Called()
 
-	return args.Get(0).(beanstalk.Stats), args.Error(1)
+	return args.Get(0).(*beanstalk.Stats), args.Error(1)
 }
 
 func (c *Client) ListTubes() ([]string, error) {

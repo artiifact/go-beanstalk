@@ -18,24 +18,24 @@ type Client interface {
 	Close() error
 	Put(priority uint32, delay, ttr time.Duration, data []byte) (int, error)
 	Use(tube string) (string, error)
-	Reserve() (Job, error)
-	ReserveWithTimeout(timeout time.Duration) (Job, error)
-	ReserveJob(id int) (Job, error)
+	Reserve() (*Job, error)
+	ReserveWithTimeout(timeout time.Duration) (*Job, error)
+	ReserveJob(id int) (*Job, error)
 	Delete(id int) error
 	Release(id int, priority uint32, delay time.Duration) error
 	Bury(id int, priority uint32) error
 	Touch(id int) error
 	Watch(tube string) (int, error)
 	Ignore(tube string) (int, error)
-	Peek(id int) (Job, error)
-	PeekReady() (Job, error)
-	PeekDelayed() (Job, error)
-	PeekBuried() (Job, error)
+	Peek(id int) (*Job, error)
+	PeekReady() (*Job, error)
+	PeekDelayed() (*Job, error)
+	PeekBuried() (*Job, error)
 	Kick(bound int) (int, error)
 	KickJob(id int) error
-	StatsJob(id int) (StatsJob, error)
-	StatsTube(tube string) (StatsTube, error)
-	Stats() (Stats, error)
+	StatsJob(id int) (*StatsJob, error)
+	StatsTube(tube string) (*StatsTube, error)
+	Stats() (*Stats, error)
 	ListTubes() ([]string, error)
 	ListTubeUsed() (string, error)
 	ListTubesWatched() ([]string, error)
@@ -109,31 +109,31 @@ func (c *DefaultClient) Use(tube string) (string, error) {
 	return r.(UseCommandResponse).Tube, nil
 }
 
-func (c *DefaultClient) Reserve() (Job, error) {
+func (c *DefaultClient) Reserve() (*Job, error) {
 	r, err := c.ExecuteCommand(ReserveCommand{})
 	if err != nil {
-		return Job{}, err
+		return nil, err
 	}
 
-	return Job{ID: r.(ReserveCommandResponse).ID, Data: r.(ReserveCommandResponse).Data}, nil
+	return &Job{ID: r.(ReserveCommandResponse).ID, Data: r.(ReserveCommandResponse).Data}, nil
 }
 
-func (c *DefaultClient) ReserveWithTimeout(timeout time.Duration) (Job, error) {
+func (c *DefaultClient) ReserveWithTimeout(timeout time.Duration) (*Job, error) {
 	r, err := c.ExecuteCommand(ReserveWithTimeoutCommand{Timeout: timeout})
 	if err != nil {
-		return Job{}, err
+		return nil, err
 	}
 
-	return Job{ID: r.(ReserveWithTimeoutCommandResponse).ID, Data: r.(ReserveWithTimeoutCommandResponse).Data}, nil
+	return &Job{ID: r.(ReserveWithTimeoutCommandResponse).ID, Data: r.(ReserveWithTimeoutCommandResponse).Data}, nil
 }
 
-func (c *DefaultClient) ReserveJob(id int) (Job, error) {
+func (c *DefaultClient) ReserveJob(id int) (*Job, error) {
 	r, err := c.ExecuteCommand(ReserveJobCommand{ID: id})
 	if err != nil {
-		return Job{}, err
+		return nil, err
 	}
 
-	return Job{ID: r.(ReserveJobCommandResponse).ID, Data: r.(ReserveJobCommandResponse).Data}, nil
+	return &Job{ID: r.(ReserveJobCommandResponse).ID, Data: r.(ReserveJobCommandResponse).Data}, nil
 }
 
 func (c *DefaultClient) Delete(id int) error {
@@ -178,40 +178,40 @@ func (c *DefaultClient) Ignore(tube string) (int, error) {
 	return r.(IgnoreCommandResponse).Count, nil
 }
 
-func (c *DefaultClient) Peek(id int) (Job, error) {
+func (c *DefaultClient) Peek(id int) (*Job, error) {
 	r, err := c.ExecuteCommand(PeekCommand{ID: id})
 	if err != nil {
-		return Job{}, err
+		return nil, err
 	}
 
-	return Job{ID: r.(PeekCommandResponse).ID, Data: r.(PeekCommandResponse).Data}, nil
+	return &Job{ID: r.(PeekCommandResponse).ID, Data: r.(PeekCommandResponse).Data}, nil
 }
 
-func (c *DefaultClient) PeekReady() (Job, error) {
+func (c *DefaultClient) PeekReady() (*Job, error) {
 	r, err := c.ExecuteCommand(PeekReadyCommand{})
 	if err != nil {
-		return Job{}, err
+		return nil, err
 	}
 
-	return Job{ID: r.(PeekReadyCommandResponse).ID, Data: r.(PeekReadyCommandResponse).Data}, nil
+	return &Job{ID: r.(PeekReadyCommandResponse).ID, Data: r.(PeekReadyCommandResponse).Data}, nil
 }
 
-func (c *DefaultClient) PeekDelayed() (Job, error) {
+func (c *DefaultClient) PeekDelayed() (*Job, error) {
 	r, err := c.ExecuteCommand(PeekDelayedCommand{})
 	if err != nil {
-		return Job{}, err
+		return nil, err
 	}
 
-	return Job{ID: r.(PeekDelayedCommandResponse).ID, Data: r.(PeekDelayedCommandResponse).Data}, nil
+	return &Job{ID: r.(PeekDelayedCommandResponse).ID, Data: r.(PeekDelayedCommandResponse).Data}, nil
 }
 
-func (c *DefaultClient) PeekBuried() (Job, error) {
+func (c *DefaultClient) PeekBuried() (*Job, error) {
 	r, err := c.ExecuteCommand(PeekBuriedCommand{})
 	if err != nil {
-		return Job{}, err
+		return nil, err
 	}
 
-	return Job{ID: r.(PeekBuriedCommandResponse).ID, Data: r.(PeekBuriedCommandResponse).Data}, nil
+	return &Job{ID: r.(PeekBuriedCommandResponse).ID, Data: r.(PeekBuriedCommandResponse).Data}, nil
 }
 
 func (c *DefaultClient) Kick(bound int) (int, error) {
@@ -229,46 +229,46 @@ func (c *DefaultClient) KickJob(id int) error {
 	return err
 }
 
-func (c *DefaultClient) StatsJob(id int) (StatsJob, error) {
+func (c *DefaultClient) StatsJob(id int) (*StatsJob, error) {
 	r, err := c.ExecuteCommand(StatsJobCommand{ID: id})
 	if err != nil {
-		return StatsJob{}, err
+		return nil, err
 	}
 
 	var stats StatsJob
 	if err = yaml.Unmarshal(r.(StatsJobCommandResponse).Data, &stats); err != nil {
-		return StatsJob{}, err
+		return nil, err
 	}
 
-	return stats, err
+	return &stats, err
 }
 
-func (c *DefaultClient) StatsTube(tube string) (StatsTube, error) {
+func (c *DefaultClient) StatsTube(tube string) (*StatsTube, error) {
 	r, err := c.ExecuteCommand(StatsTubeCommand{Tube: tube})
 	if err != nil {
-		return StatsTube{}, err
+		return nil, err
 	}
 
 	var stats StatsTube
 	if err = yaml.Unmarshal(r.(StatsTubeCommandResponse).Data, &stats); err != nil {
-		return StatsTube{}, err
+		return nil, err
 	}
 
-	return stats, err
+	return &stats, err
 }
 
-func (c *DefaultClient) Stats() (Stats, error) {
+func (c *DefaultClient) Stats() (*Stats, error) {
 	r, err := c.ExecuteCommand(StatsCommand{})
 	if err != nil {
-		return Stats{}, err
+		return nil, err
 	}
 
 	var stats Stats
 	if err = yaml.Unmarshal(r.(StatsCommandResponse).Data, &stats); err != nil {
-		return Stats{}, err
+		return nil, err
 	}
 
-	return stats, err
+	return &stats, err
 }
 
 func (c *DefaultClient) ListTubes() ([]string, error) {

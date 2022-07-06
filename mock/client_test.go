@@ -36,7 +36,7 @@ func TestClient_Use(t *testing.T) {
 }
 
 func TestClient_Reserve(t *testing.T) {
-	expectedJob := beanstalk.Job{ID: 1, Data: []byte("test")}
+	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
 	c := &mock.Client{}
 	c.On("Reserve").Return(expectedJob, nil)
@@ -48,7 +48,7 @@ func TestClient_Reserve(t *testing.T) {
 }
 
 func TestClient_ReserveWithTimeout(t *testing.T) {
-	expectedJob := beanstalk.Job{ID: 1, Data: []byte("test")}
+	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
 	c := &mock.Client{}
 	c.On("ReserveWithTimeout", 5*time.Second).Return(expectedJob, nil)
@@ -60,7 +60,7 @@ func TestClient_ReserveWithTimeout(t *testing.T) {
 }
 
 func TestClient_ReserveJob(t *testing.T) {
-	expectedJob := beanstalk.Job{ID: 1, Data: []byte("test")}
+	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
 	c := &mock.Client{}
 	c.On("ReserveJob", 1).Return(expectedJob, nil)
@@ -120,7 +120,7 @@ func TestClient_Ignore(t *testing.T) {
 }
 
 func TestClient_Peek(t *testing.T) {
-	expectedJob := beanstalk.Job{ID: 1, Data: []byte("test")}
+	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
 	c := &mock.Client{}
 	c.On("Peek", 1).Return(expectedJob, nil)
@@ -132,7 +132,7 @@ func TestClient_Peek(t *testing.T) {
 }
 
 func TestClient_PeekReady(t *testing.T) {
-	expectedJob := beanstalk.Job{ID: 1, Data: []byte("test")}
+	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
 	c := &mock.Client{}
 	c.On("PeekReady").Return(expectedJob, nil)
@@ -144,7 +144,7 @@ func TestClient_PeekReady(t *testing.T) {
 }
 
 func TestClient_PeekDelayed(t *testing.T) {
-	expectedJob := beanstalk.Job{ID: 1, Data: []byte("test")}
+	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
 	c := &mock.Client{}
 	c.On("PeekDelayed").Return(expectedJob, nil)
@@ -156,7 +156,7 @@ func TestClient_PeekDelayed(t *testing.T) {
 }
 
 func TestClient_PeekBuried(t *testing.T) {
-	expectedJob := beanstalk.Job{ID: 1, Data: []byte("test")}
+	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
 	c := &mock.Client{}
 	c.On("PeekBuried").Return(expectedJob, nil)
@@ -185,7 +185,7 @@ func TestClient_KickJob(t *testing.T) {
 }
 
 func TestClient_StatsJob(t *testing.T) {
-	expectedStats := beanstalk.StatsJob{}
+	expectedStats := &beanstalk.StatsJob{}
 
 	c := &mock.Client{}
 	c.On("StatsJob", 1).Return(expectedStats, nil)
@@ -197,7 +197,7 @@ func TestClient_StatsJob(t *testing.T) {
 }
 
 func TestClient_StatsTube(t *testing.T) {
-	expectedStats := beanstalk.StatsTube{}
+	expectedStats := &beanstalk.StatsTube{}
 
 	c := &mock.Client{}
 	c.On("StatsTube", "test").Return(expectedStats, nil)
@@ -209,7 +209,7 @@ func TestClient_StatsTube(t *testing.T) {
 }
 
 func TestClient_Stats(t *testing.T) {
-	expectedStats := beanstalk.Stats{}
+	expectedStats := &beanstalk.Stats{}
 
 	c := &mock.Client{}
 	c.On("Stats").Return(expectedStats, nil)
