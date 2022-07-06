@@ -36,39 +36,75 @@ func TestClient_Use(t *testing.T) {
 }
 
 func TestClient_Reserve(t *testing.T) {
-	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
+	t.Run("exists", func(t *testing.T) {
+		expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
-	c := &mock.Client{}
-	c.On("Reserve").Return(expectedJob, nil)
+		c := &mock.Client{}
+		c.On("Reserve").Return(expectedJob, nil)
 
-	job, err := c.Reserve()
+		job, err := c.Reserve()
 
-	require.Equal(t, expectedJob, job)
-	require.Nil(t, err)
+		require.Equal(t, expectedJob, job)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("Reserve").Return(nil, beanstalk.ErrNotFound)
+
+		job, err := c.Reserve()
+
+		require.Error(t, err)
+		require.Nil(t, job)
+	})
 }
 
 func TestClient_ReserveWithTimeout(t *testing.T) {
-	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
+	t.Run("exists", func(t *testing.T) {
+		expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
-	c := &mock.Client{}
-	c.On("ReserveWithTimeout", 5*time.Second).Return(expectedJob, nil)
+		c := &mock.Client{}
+		c.On("ReserveWithTimeout", 5*time.Second).Return(expectedJob, nil)
 
-	job, err := c.ReserveWithTimeout(5 * time.Second)
+		job, err := c.ReserveWithTimeout(5 * time.Second)
 
-	require.Equal(t, expectedJob, job)
-	require.Nil(t, err)
+		require.Equal(t, expectedJob, job)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("ReserveWithTimeout", 5*time.Second).Return(nil, beanstalk.ErrNotFound)
+
+		job, err := c.ReserveWithTimeout(5 * time.Second)
+
+		require.Error(t, err)
+		require.Nil(t, job)
+	})
 }
 
 func TestClient_ReserveJob(t *testing.T) {
-	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
+	t.Run("exists", func(t *testing.T) {
+		expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
-	c := &mock.Client{}
-	c.On("ReserveJob", 1).Return(expectedJob, nil)
+		c := &mock.Client{}
+		c.On("ReserveJob", 1).Return(expectedJob, nil)
 
-	job, err := c.ReserveJob(1)
+		job, err := c.ReserveJob(1)
 
-	require.Equal(t, expectedJob, job)
-	require.Nil(t, err)
+		require.Equal(t, expectedJob, job)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("ReserveJob", 1).Return(nil, beanstalk.ErrNotFound)
+
+		job, err := c.ReserveJob(1)
+
+		require.Error(t, err)
+		require.Nil(t, job)
+	})
 }
 
 func TestClient_Delete(t *testing.T) {
@@ -120,51 +156,99 @@ func TestClient_Ignore(t *testing.T) {
 }
 
 func TestClient_Peek(t *testing.T) {
-	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
+	t.Run("exists", func(t *testing.T) {
+		expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
-	c := &mock.Client{}
-	c.On("Peek", 1).Return(expectedJob, nil)
+		c := &mock.Client{}
+		c.On("Peek", 1).Return(expectedJob, nil)
 
-	job, err := c.Peek(1)
+		job, err := c.Peek(1)
 
-	require.Equal(t, expectedJob, job)
-	require.Nil(t, err)
+		require.Equal(t, expectedJob, job)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("Peek", 1).Return(nil, beanstalk.ErrNotFound)
+
+		job, err := c.Peek(1)
+
+		require.Error(t, err)
+		require.Nil(t, job)
+	})
 }
 
 func TestClient_PeekReady(t *testing.T) {
-	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
+	t.Run("exists", func(t *testing.T) {
+		expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
-	c := &mock.Client{}
-	c.On("PeekReady").Return(expectedJob, nil)
+		c := &mock.Client{}
+		c.On("PeekReady").Return(expectedJob, nil)
 
-	job, err := c.PeekReady()
+		job, err := c.PeekReady()
 
-	require.Equal(t, expectedJob, job)
-	require.Nil(t, err)
+		require.Equal(t, expectedJob, job)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("PeekReady").Return(nil, beanstalk.ErrNotFound)
+
+		job, err := c.PeekReady()
+
+		require.Error(t, err)
+		require.Nil(t, job)
+	})
 }
 
 func TestClient_PeekDelayed(t *testing.T) {
-	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
+	t.Run("exists", func(t *testing.T) {
+		expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
-	c := &mock.Client{}
-	c.On("PeekDelayed").Return(expectedJob, nil)
+		c := &mock.Client{}
+		c.On("PeekDelayed").Return(expectedJob, nil)
 
-	job, err := c.PeekDelayed()
+		job, err := c.PeekDelayed()
 
-	require.Equal(t, expectedJob, job)
-	require.Nil(t, err)
+		require.Equal(t, expectedJob, job)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("PeekDelayed").Return(nil, beanstalk.ErrNotFound)
+
+		job, err := c.PeekDelayed()
+
+		require.Error(t, err)
+		require.Nil(t, job)
+	})
 }
 
 func TestClient_PeekBuried(t *testing.T) {
-	expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
+	t.Run("exists", func(t *testing.T) {
+		expectedJob := &beanstalk.Job{ID: 1, Data: []byte("test")}
 
-	c := &mock.Client{}
-	c.On("PeekBuried").Return(expectedJob, nil)
+		c := &mock.Client{}
+		c.On("PeekBuried").Return(expectedJob, nil)
 
-	job, err := c.PeekBuried()
+		job, err := c.PeekBuried()
 
-	require.Equal(t, expectedJob, job)
-	require.Nil(t, err)
+		require.Equal(t, expectedJob, job)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("PeekBuried").Return(nil, beanstalk.ErrNotFound)
+
+		job, err := c.PeekBuried()
+
+		require.Error(t, err)
+		require.Nil(t, job)
+	})
 }
 
 func TestClient_Kick(t *testing.T) {
@@ -185,51 +269,99 @@ func TestClient_KickJob(t *testing.T) {
 }
 
 func TestClient_StatsJob(t *testing.T) {
-	expectedStats := &beanstalk.StatsJob{}
+	t.Run("exists", func(t *testing.T) {
+		expectedStats := &beanstalk.StatsJob{}
 
-	c := &mock.Client{}
-	c.On("StatsJob", 1).Return(expectedStats, nil)
+		c := &mock.Client{}
+		c.On("StatsJob", 1).Return(expectedStats, nil)
 
-	stats, err := c.StatsJob(1)
+		stats, err := c.StatsJob(1)
 
-	require.Equal(t, expectedStats, stats)
-	require.Nil(t, err)
+		require.Equal(t, expectedStats, stats)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("StatsJob", 1).Return(nil, beanstalk.ErrNotFound)
+
+		stats, err := c.StatsJob(1)
+
+		require.Error(t, err)
+		require.Nil(t, stats)
+	})
 }
 
 func TestClient_StatsTube(t *testing.T) {
-	expectedStats := &beanstalk.StatsTube{}
+	t.Run("exists", func(t *testing.T) {
+		expectedStats := &beanstalk.StatsTube{}
 
-	c := &mock.Client{}
-	c.On("StatsTube", "test").Return(expectedStats, nil)
+		c := &mock.Client{}
+		c.On("StatsTube", "test").Return(expectedStats, nil)
 
-	stats, err := c.StatsTube("test")
+		stats, err := c.StatsTube("test")
 
-	require.Equal(t, expectedStats, stats)
-	require.Nil(t, err)
+		require.Equal(t, expectedStats, stats)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("StatsTube", "test").Return(nil, beanstalk.ErrNotFound)
+
+		stats, err := c.StatsTube("test")
+
+		require.Error(t, err)
+		require.Nil(t, stats)
+	})
 }
 
 func TestClient_Stats(t *testing.T) {
-	expectedStats := &beanstalk.Stats{}
+	t.Run("exists", func(t *testing.T) {
+		expectedStats := &beanstalk.Stats{}
 
-	c := &mock.Client{}
-	c.On("Stats").Return(expectedStats, nil)
+		c := &mock.Client{}
+		c.On("Stats").Return(expectedStats, nil)
 
-	stats, err := c.Stats()
+		stats, err := c.Stats()
 
-	require.Equal(t, expectedStats, stats)
-	require.Nil(t, err)
+		require.Equal(t, expectedStats, stats)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("Stats").Return(nil, beanstalk.ErrInternalError)
+
+		stats, err := c.Stats()
+
+		require.Error(t, err)
+		require.Nil(t, stats)
+	})
 }
 
 func TestClient_ListTubes(t *testing.T) {
-	expectedTubes := []string{"default", "test"}
+	t.Run("exists", func(t *testing.T) {
+		expectedTubes := []string{"default", "test"}
 
-	c := &mock.Client{}
-	c.On("ListTubes").Return(expectedTubes, nil)
+		c := &mock.Client{}
+		c.On("ListTubes").Return(expectedTubes, nil)
 
-	tubes, err := c.ListTubes()
+		tubes, err := c.ListTubes()
 
-	require.ElementsMatch(t, expectedTubes, tubes)
-	require.Nil(t, err)
+		require.ElementsMatch(t, expectedTubes, tubes)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("ListTubes").Return(nil, beanstalk.ErrInternalError)
+
+		tubes, err := c.ListTubes()
+
+		require.Error(t, err)
+		require.Nil(t, tubes)
+	})
 }
 
 func TestClient_ListTubeUsed(t *testing.T) {
@@ -243,15 +375,27 @@ func TestClient_ListTubeUsed(t *testing.T) {
 }
 
 func TestClient_ListTubesWatched(t *testing.T) {
-	expectedTubes := []string{"default", "test"}
+	t.Run("exists", func(t *testing.T) {
+		expectedTubes := []string{"default", "test"}
 
-	c := &mock.Client{}
-	c.On("ListTubesWatched").Return(expectedTubes, nil)
+		c := &mock.Client{}
+		c.On("ListTubesWatched").Return(expectedTubes, nil)
 
-	tubes, err := c.ListTubesWatched()
+		tubes, err := c.ListTubesWatched()
 
-	require.ElementsMatch(t, expectedTubes, tubes)
-	require.Nil(t, err)
+		require.ElementsMatch(t, expectedTubes, tubes)
+		require.Nil(t, err)
+	})
+
+	t.Run("nil", func(t *testing.T) {
+		c := &mock.Client{}
+		c.On("ListTubesWatched").Return(nil, beanstalk.ErrInternalError)
+
+		tubes, err := c.ListTubesWatched()
+
+		require.Error(t, err)
+		require.Nil(t, tubes)
+	})
 }
 
 func TestClient_PauseTube(t *testing.T) {

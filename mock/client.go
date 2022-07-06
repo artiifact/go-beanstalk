@@ -31,17 +31,29 @@ func (c *Client) Use(tube string) (string, error) {
 func (c *Client) Reserve() (*beanstalk.Job, error) {
 	args := c.Called()
 
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
 	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
 func (c *Client) ReserveWithTimeout(timeout time.Duration) (*beanstalk.Job, error) {
 	args := c.Called(timeout)
 
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
 	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
 func (c *Client) ReserveJob(id int) (*beanstalk.Job, error) {
 	args := c.Called(id)
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 
 	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
@@ -85,11 +97,19 @@ func (c *Client) Ignore(tube string) (int, error) {
 func (c *Client) Peek(id int) (*beanstalk.Job, error) {
 	args := c.Called(id)
 
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
 	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
 func (c *Client) PeekReady() (*beanstalk.Job, error) {
 	args := c.Called()
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 
 	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
@@ -97,11 +117,19 @@ func (c *Client) PeekReady() (*beanstalk.Job, error) {
 func (c *Client) PeekDelayed() (*beanstalk.Job, error) {
 	args := c.Called()
 
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
 	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
 
 func (c *Client) PeekBuried() (*beanstalk.Job, error) {
 	args := c.Called()
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 
 	return args.Get(0).(*beanstalk.Job), args.Error(1)
 }
@@ -121,11 +149,19 @@ func (c *Client) KickJob(id int) error {
 func (c *Client) StatsJob(id int) (*beanstalk.StatsJob, error) {
 	args := c.Called(id)
 
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
 	return args.Get(0).(*beanstalk.StatsJob), args.Error(1)
 }
 
 func (c *Client) StatsTube(tube string) (*beanstalk.StatsTube, error) {
 	args := c.Called(tube)
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 
 	return args.Get(0).(*beanstalk.StatsTube), args.Error(1)
 }
@@ -133,11 +169,19 @@ func (c *Client) StatsTube(tube string) (*beanstalk.StatsTube, error) {
 func (c *Client) Stats() (*beanstalk.Stats, error) {
 	args := c.Called()
 
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
 	return args.Get(0).(*beanstalk.Stats), args.Error(1)
 }
 
 func (c *Client) ListTubes() ([]string, error) {
 	args := c.Called()
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 
 	return args.Get(0).([]string), args.Error(1)
 }
@@ -150,6 +194,10 @@ func (c *Client) ListTubeUsed() (string, error) {
 
 func (c *Client) ListTubesWatched() ([]string, error) {
 	args := c.Called()
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 
 	return args.Get(0).([]string), args.Error(1)
 }
