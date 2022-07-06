@@ -150,9 +150,10 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	t.Run("reserved / unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"RESERVED\r\n"}))
 
-		_, err := c.Reserve()
+		job, err := c.Reserve()
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -160,10 +161,11 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	t.Run("reserved / malformed response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"}))
 
-		_, err := c.Reserve()
+		job, err := c.Reserve()
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "invalid syntax")
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -183,9 +185,10 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	t.Run("deadline soon", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"DEADLINE_SOON\r\n"}))
 
-		_, err := c.Reserve()
+		job, err := c.Reserve()
 
 		require.Equal(t, beanstalk.ErrDeadlineSoon, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -193,9 +196,10 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	t.Run("timed out", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"TIMED_OUT\r\n"}))
 
-		_, err := c.Reserve()
+		job, err := c.Reserve()
 
 		require.Equal(t, beanstalk.ErrTimedOut, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -203,9 +207,10 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.Reserve()
+		job, err := c.Reserve()
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -215,9 +220,10 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	t.Run("reserved / unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED\r\n"}))
 
-		_, err := c.ReserveWithTimeout(5 * time.Second)
+		job, err := c.ReserveWithTimeout(5 * time.Second)
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -225,10 +231,11 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	t.Run("reserved / malformed response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"}))
 
-		_, err := c.ReserveWithTimeout(5 * time.Second)
+		job, err := c.ReserveWithTimeout(5 * time.Second)
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "invalid syntax")
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -248,9 +255,10 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	t.Run("deadline soon", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 60\r\n"}, []string{"DEADLINE_SOON\r\n"}))
 
-		_, err := c.ReserveWithTimeout(60 * time.Second)
+		job, err := c.ReserveWithTimeout(60 * time.Second)
 
 		require.Equal(t, beanstalk.ErrDeadlineSoon, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -258,9 +266,10 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	t.Run("timed out", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 600\r\n"}, []string{"TIMED_OUT\r\n"}))
 
-		_, err := c.ReserveWithTimeout(10 * time.Minute)
+		job, err := c.ReserveWithTimeout(10 * time.Minute)
 
 		require.Equal(t, beanstalk.ErrTimedOut, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -268,9 +277,10 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 300\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.ReserveWithTimeout(300 * time.Second)
+		job, err := c.ReserveWithTimeout(300 * time.Second)
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -280,9 +290,10 @@ func TestDefaultClient_ReserveJob(t *testing.T) {
 	t.Run("reserved / unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"RESERVED\r\n"}))
 
-		_, err := c.ReserveJob(1)
+		job, err := c.ReserveJob(1)
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -290,10 +301,11 @@ func TestDefaultClient_ReserveJob(t *testing.T) {
 	t.Run("reserved / malformed response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"}))
 
-		_, err := c.ReserveJob(1)
+		job, err := c.ReserveJob(1)
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "invalid syntax")
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -313,9 +325,10 @@ func TestDefaultClient_ReserveJob(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"NOT_FOUND\r\n"}))
 
-		_, err := c.ReserveJob(1)
+		job, err := c.ReserveJob(1)
 
 		require.Equal(t, beanstalk.ErrNotFound, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -323,9 +336,10 @@ func TestDefaultClient_ReserveJob(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.ReserveJob(1)
+		job, err := c.ReserveJob(1)
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -571,9 +585,10 @@ func TestDefaultClient_Peek(t *testing.T) {
 	t.Run("found / unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"FOUND\r\n"}))
 
-		_, err := c.Peek(1)
+		job, err := c.Peek(1)
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -581,10 +596,11 @@ func TestDefaultClient_Peek(t *testing.T) {
 	t.Run("found / malformed response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
 
-		_, err := c.Peek(1)
+		job, err := c.Peek(1)
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "invalid syntax")
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -604,9 +620,10 @@ func TestDefaultClient_Peek(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"NOT_FOUND\r\n"}))
 
-		_, err := c.Peek(1)
+		job, err := c.Peek(1)
 
 		require.Equal(t, beanstalk.ErrNotFound, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -614,9 +631,10 @@ func TestDefaultClient_Peek(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.Peek(1)
+		job, err := c.Peek(1)
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -626,9 +644,10 @@ func TestDefaultClient_PeekReady(t *testing.T) {
 	t.Run("found / unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"FOUND\r\n"}))
 
-		_, err := c.PeekReady()
+		job, err := c.PeekReady()
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -636,10 +655,11 @@ func TestDefaultClient_PeekReady(t *testing.T) {
 	t.Run("found / malformed response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
 
-		_, err := c.PeekReady()
+		job, err := c.PeekReady()
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "invalid syntax")
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -659,9 +679,10 @@ func TestDefaultClient_PeekReady(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"NOT_FOUND\r\n"}))
 
-		_, err := c.PeekReady()
+		job, err := c.PeekReady()
 
 		require.Equal(t, beanstalk.ErrNotFound, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -669,9 +690,10 @@ func TestDefaultClient_PeekReady(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.PeekReady()
+		job, err := c.PeekReady()
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -681,9 +703,10 @@ func TestDefaultClient_PeekDelayed(t *testing.T) {
 	t.Run("found / unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"FOUND\r\n"}))
 
-		_, err := c.PeekDelayed()
+		job, err := c.PeekDelayed()
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -691,10 +714,11 @@ func TestDefaultClient_PeekDelayed(t *testing.T) {
 	t.Run("found / malformed response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
 
-		_, err := c.PeekDelayed()
+		job, err := c.PeekDelayed()
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "invalid syntax")
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -714,9 +738,10 @@ func TestDefaultClient_PeekDelayed(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"NOT_FOUND\r\n"}))
 
-		_, err := c.PeekDelayed()
+		job, err := c.PeekDelayed()
 
 		require.Equal(t, beanstalk.ErrNotFound, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -724,9 +749,10 @@ func TestDefaultClient_PeekDelayed(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.PeekDelayed()
+		job, err := c.PeekDelayed()
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -736,9 +762,10 @@ func TestDefaultClient_PeekBuried(t *testing.T) {
 	t.Run("found / unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"FOUND\r\n"}))
 
-		_, err := c.PeekBuried()
+		job, err := c.PeekBuried()
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -746,10 +773,11 @@ func TestDefaultClient_PeekBuried(t *testing.T) {
 	t.Run("found / malformed response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
 
-		_, err := c.PeekBuried()
+		job, err := c.PeekBuried()
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "invalid syntax")
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -769,9 +797,10 @@ func TestDefaultClient_PeekBuried(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"NOT_FOUND\r\n"}))
 
-		_, err := c.PeekBuried()
+		job, err := c.PeekBuried()
 
 		require.Equal(t, beanstalk.ErrNotFound, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -779,9 +808,10 @@ func TestDefaultClient_PeekBuried(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.PeekBuried()
+		job, err := c.PeekBuried()
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, job)
 
 		require.NoError(t, c.Close())
 	})
@@ -920,10 +950,11 @@ func TestDefaultClient_StatsJob(t *testing.T) {
 			},
 		))
 
-		_, err := c.StatsJob(1)
+		stats, err := c.StatsJob(1)
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "cannot unmarshal")
+		require.Nil(t, stats)
 
 		require.NoError(t, c.Close())
 	})
@@ -931,9 +962,10 @@ func TestDefaultClient_StatsJob(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats-job 1\r\n"}, []string{"NOT_FOUND\r\n"}))
 
-		_, err := c.StatsJob(1)
+		stats, err := c.StatsJob(1)
 
 		require.Equal(t, beanstalk.ErrNotFound, err)
+		require.Nil(t, stats)
 
 		require.NoError(t, c.Close())
 	})
@@ -941,9 +973,10 @@ func TestDefaultClient_StatsJob(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats-job 1\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.StatsJob(1)
+		stats, err := c.StatsJob(1)
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, stats)
 
 		require.NoError(t, c.Close())
 	})
@@ -1006,10 +1039,11 @@ func TestDefaultClient_StatsTube(t *testing.T) {
 			},
 		))
 
-		_, err := c.StatsTube("test")
+		stats, err := c.StatsTube("test")
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "cannot unmarshal")
+		require.Nil(t, stats)
 
 		require.NoError(t, c.Close())
 	})
@@ -1017,9 +1051,10 @@ func TestDefaultClient_StatsTube(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats-tube test\r\n"}, []string{"NOT_FOUND\r\n"}))
 
-		_, err := c.StatsTube("test")
+		stats, err := c.StatsTube("test")
 
 		require.Equal(t, beanstalk.ErrNotFound, err)
+		require.Nil(t, stats)
 
 		require.NoError(t, c.Close())
 	})
@@ -1027,9 +1062,10 @@ func TestDefaultClient_StatsTube(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats-tube test\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.StatsTube("test")
+		stats, err := c.StatsTube("test")
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, stats)
 
 		require.NoError(t, c.Close())
 	})
@@ -1158,10 +1194,11 @@ func TestDefaultClient_Stats(t *testing.T) {
 			},
 		))
 
-		_, err := c.Stats()
+		stats, err := c.Stats()
 
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "cannot unmarshal")
+		require.Nil(t, stats)
 
 		require.NoError(t, c.Close())
 	})
@@ -1169,9 +1206,10 @@ func TestDefaultClient_Stats(t *testing.T) {
 	t.Run("unexpected response", func(t *testing.T) {
 		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats\r\n"}, []string{"TEST\r\n"}))
 
-		_, err := c.Stats()
+		stats, err := c.Stats()
 
 		require.Equal(t, beanstalk.ErrUnexpectedResponse, err)
+		require.Nil(t, stats)
 
 		require.NoError(t, c.Close())
 	})
