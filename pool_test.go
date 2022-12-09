@@ -12,8 +12,8 @@ import (
 func TestNewDefaultPool(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 		})
 
@@ -65,8 +65,8 @@ func TestNewDefaultPool(t *testing.T) {
 func TestDefaultPool_Open(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    3,
@@ -83,8 +83,8 @@ func TestDefaultPool_Open(t *testing.T) {
 
 	t.Run("already opened", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    3,
@@ -109,8 +109,8 @@ func TestDefaultPool_Open(t *testing.T) {
 func TestDefaultPool_Close(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    5,
@@ -135,8 +135,8 @@ func TestDefaultPool_Close(t *testing.T) {
 
 	t.Run("closed", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    5,
@@ -164,8 +164,8 @@ func TestDefaultPool_Close(t *testing.T) {
 func TestDefaultPool_Get(t *testing.T) {
 	t.Run("max age", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
@@ -197,8 +197,8 @@ func TestDefaultPool_Get(t *testing.T) {
 
 	t.Run("idle timeout", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
@@ -230,8 +230,8 @@ func TestDefaultPool_Get(t *testing.T) {
 
 	t.Run("closed", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				client := beanstalk.NewDefaultClient(mock.NewConn(nil, nil))
+			Dialer: func() (*beanstalk.Client, error) {
+				client := beanstalk.NewClient(mock.NewConn(nil, nil))
 				if err := client.Close(); err != nil {
 					t.Fatal(err)
 				}
@@ -267,8 +267,8 @@ func TestDefaultPool_Get(t *testing.T) {
 func TestDefaultPool_Put(t *testing.T) {
 	t.Run("closed pool", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
@@ -300,8 +300,8 @@ func TestDefaultPool_Put(t *testing.T) {
 
 	t.Run("closed client", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
@@ -337,8 +337,8 @@ func TestDefaultPool_Put(t *testing.T) {
 
 	t.Run("max capacity", func(t *testing.T) {
 		pool := beanstalk.NewDefaultPool(&beanstalk.PoolOptions{
-			Dialer: func() (*beanstalk.DefaultClient, error) {
-				return beanstalk.NewDefaultClient(mock.NewConn(nil, nil)), nil
+			Dialer: func() (*beanstalk.Client, error) {
+				return beanstalk.NewClient(mock.NewConn(nil, nil)), nil
 			},
 			Logger:      beanstalk.NopLogger,
 			Capacity:    1,
