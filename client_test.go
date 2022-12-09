@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-func TestNewDefaultClient(t *testing.T) {
-	c := beanstalk.NewDefaultClient(mock.NewConn(nil, nil))
+func TestNewClient(t *testing.T) {
+	c := beanstalk.NewClient(mock.NewConn(nil, nil))
 
 	require.NotNil(t, c.CreatedAt())
 	require.Equal(t, int64(0), c.UsedAt().Unix())
@@ -20,7 +20,7 @@ func TestNewDefaultClient(t *testing.T) {
 }
 
 func TestDefaultClient_Close(t *testing.T) {
-	c := beanstalk.NewDefaultClient(mock.NewConn(nil, nil))
+	c := beanstalk.NewClient(mock.NewConn(nil, nil))
 
 	require.Equal(t, int64(0), c.ClosedAt().Unix())
 
@@ -31,7 +31,7 @@ func TestDefaultClient_Close(t *testing.T) {
 
 func TestDefaultClient_Put(t *testing.T) {
 	t.Run("inserted / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"put 1 5 600 4\r\ntest\r\n"}, []string{"INSERTED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"put 1 5 600 4\r\ntest\r\n"}, []string{"INSERTED\r\n"}))
 
 		_, err := c.Put(1, 5*time.Second, 10*time.Minute, []byte("test"))
 
@@ -41,7 +41,7 @@ func TestDefaultClient_Put(t *testing.T) {
 	})
 
 	t.Run("inserted / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"put 1 5 600 4\r\ntest\r\n"}, []string{"INSERTED test\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"put 1 5 600 4\r\ntest\r\n"}, []string{"INSERTED test\r\n"}))
 
 		_, err := c.Put(1, 5*time.Second, 10*time.Minute, []byte("test"))
 
@@ -52,7 +52,7 @@ func TestDefaultClient_Put(t *testing.T) {
 	})
 
 	t.Run("inserted / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"put 1 5 600 4\r\ntest\r\n"}, []string{"INSERTED 1\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"put 1 5 600 4\r\ntest\r\n"}, []string{"INSERTED 1\r\n"}))
 
 		id, err := c.Put(1, 5*time.Second, 10*time.Minute, []byte("test"))
 
@@ -63,7 +63,7 @@ func TestDefaultClient_Put(t *testing.T) {
 	})
 
 	t.Run("buried", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"put 100 0 1800 11\r\ntest buried\r\n"}, []string{"BURIED 1\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"put 100 0 1800 11\r\ntest buried\r\n"}, []string{"BURIED 1\r\n"}))
 
 		_, err := c.Put(100, 0, 30*time.Minute, []byte("test buried"))
 
@@ -73,7 +73,7 @@ func TestDefaultClient_Put(t *testing.T) {
 	})
 
 	t.Run("expected CRLF", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"put 0 30 90 18\r\ntest expected CRLF\r\n"}, []string{"EXPECTED_CRLF\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"put 0 30 90 18\r\ntest expected CRLF\r\n"}, []string{"EXPECTED_CRLF\r\n"}))
 
 		_, err := c.Put(0, 30*time.Second, 90*time.Second, []byte("test expected CRLF"))
 
@@ -83,7 +83,7 @@ func TestDefaultClient_Put(t *testing.T) {
 	})
 
 	t.Run("job too big", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"put 1 1 1 16\r\ntest job too big\r\n"}, []string{"JOB_TOO_BIG\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"put 1 1 1 16\r\ntest job too big\r\n"}, []string{"JOB_TOO_BIG\r\n"}))
 
 		_, err := c.Put(1, 1*time.Second, 1*time.Second, []byte("test job too big"))
 
@@ -93,7 +93,7 @@ func TestDefaultClient_Put(t *testing.T) {
 	})
 
 	t.Run("draining", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"put 0 0 0 13\r\ntest draining\r\n"}, []string{"DRAINING\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"put 0 0 0 13\r\ntest draining\r\n"}, []string{"DRAINING\r\n"}))
 
 		_, err := c.Put(0, 0, 0, []byte("test draining"))
 
@@ -103,7 +103,7 @@ func TestDefaultClient_Put(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"put 0 0 0 24\r\ntest unexpected response\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"put 0 0 0 24\r\ntest unexpected response\r\n"}, []string{"TEST\r\n"}))
 
 		_, err := c.Put(0, 0, 0, []byte("test unexpected response"))
 
@@ -115,7 +115,7 @@ func TestDefaultClient_Put(t *testing.T) {
 
 func TestDefaultClient_Use(t *testing.T) {
 	t.Run("using / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"use test\r\n"}, []string{"USING\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"use test\r\n"}, []string{"USING\r\n"}))
 
 		_, err := c.Use("test")
 
@@ -125,7 +125,7 @@ func TestDefaultClient_Use(t *testing.T) {
 	})
 
 	t.Run("using / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"use test\r\n"}, []string{"USING test\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"use test\r\n"}, []string{"USING test\r\n"}))
 
 		tube, err := c.Use("test")
 
@@ -136,7 +136,7 @@ func TestDefaultClient_Use(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"use test\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"use test\r\n"}, []string{"TEST\r\n"}))
 
 		_, err := c.Use("test")
 
@@ -148,7 +148,7 @@ func TestDefaultClient_Use(t *testing.T) {
 
 func TestDefaultClient_Reserve(t *testing.T) {
 	t.Run("reserved / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"RESERVED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve\r\n"}, []string{"RESERVED\r\n"}))
 
 		job, err := c.Reserve()
 
@@ -159,7 +159,7 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	})
 
 	t.Run("reserved / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"}))
 
 		job, err := c.Reserve()
 
@@ -171,7 +171,7 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	})
 
 	t.Run("reserved / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"RESERVED 1 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve\r\n"}, []string{"RESERVED 1 4\r\ntest\r\n"}))
 
 		job, err := c.Reserve()
 
@@ -183,7 +183,7 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	})
 
 	t.Run("deadline soon", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"DEADLINE_SOON\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve\r\n"}, []string{"DEADLINE_SOON\r\n"}))
 
 		job, err := c.Reserve()
 
@@ -194,7 +194,7 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	})
 
 	t.Run("timed out", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"TIMED_OUT\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve\r\n"}, []string{"TIMED_OUT\r\n"}))
 
 		job, err := c.Reserve()
 
@@ -205,7 +205,7 @@ func TestDefaultClient_Reserve(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve\r\n"}, []string{"TEST\r\n"}))
 
 		job, err := c.Reserve()
 
@@ -218,7 +218,7 @@ func TestDefaultClient_Reserve(t *testing.T) {
 
 func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	t.Run("reserved / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED\r\n"}))
 
 		job, err := c.ReserveWithTimeout(5 * time.Second)
 
@@ -229,7 +229,7 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	})
 
 	t.Run("reserved / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"}))
 
 		job, err := c.ReserveWithTimeout(5 * time.Second)
 
@@ -241,7 +241,7 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	})
 
 	t.Run("reserved / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED 1 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-with-timeout 5\r\n"}, []string{"RESERVED 1 4\r\ntest\r\n"}))
 
 		job, err := c.ReserveWithTimeout(5 * time.Second)
 
@@ -253,7 +253,7 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	})
 
 	t.Run("deadline soon", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 60\r\n"}, []string{"DEADLINE_SOON\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-with-timeout 60\r\n"}, []string{"DEADLINE_SOON\r\n"}))
 
 		job, err := c.ReserveWithTimeout(60 * time.Second)
 
@@ -264,7 +264,7 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	})
 
 	t.Run("timed out", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 600\r\n"}, []string{"TIMED_OUT\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-with-timeout 600\r\n"}, []string{"TIMED_OUT\r\n"}))
 
 		job, err := c.ReserveWithTimeout(10 * time.Minute)
 
@@ -275,7 +275,7 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-with-timeout 300\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-with-timeout 300\r\n"}, []string{"TEST\r\n"}))
 
 		job, err := c.ReserveWithTimeout(300 * time.Second)
 
@@ -288,7 +288,7 @@ func TestDefaultClient_ReserveWithTimeout(t *testing.T) {
 
 func TestDefaultClient_ReserveJob(t *testing.T) {
 	t.Run("reserved / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"RESERVED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"RESERVED\r\n"}))
 
 		job, err := c.ReserveJob(1)
 
@@ -299,7 +299,7 @@ func TestDefaultClient_ReserveJob(t *testing.T) {
 	})
 
 	t.Run("reserved / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"RESERVED test 4\r\ntest\r\n"}))
 
 		job, err := c.ReserveJob(1)
 
@@ -311,7 +311,7 @@ func TestDefaultClient_ReserveJob(t *testing.T) {
 	})
 
 	t.Run("reserved / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"RESERVED 1 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"RESERVED 1 4\r\ntest\r\n"}))
 
 		job, err := c.ReserveJob(1)
 
@@ -323,7 +323,7 @@ func TestDefaultClient_ReserveJob(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		job, err := c.ReserveJob(1)
 
@@ -334,7 +334,7 @@ func TestDefaultClient_ReserveJob(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"reserve-job 1\r\n"}, []string{"TEST\r\n"}))
 
 		job, err := c.ReserveJob(1)
 
@@ -347,7 +347,7 @@ func TestDefaultClient_ReserveJob(t *testing.T) {
 
 func TestDefaultClient_Delete(t *testing.T) {
 	t.Run("deleted / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"delete 1\r\n"}, []string{"DELETED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"delete 1\r\n"}, []string{"DELETED\r\n"}))
 
 		err := c.Delete(1)
 
@@ -357,7 +357,7 @@ func TestDefaultClient_Delete(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"delete 1\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"delete 1\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		err := c.Delete(1)
 
@@ -367,7 +367,7 @@ func TestDefaultClient_Delete(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"delete 1\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"delete 1\r\n"}, []string{"TEST\r\n"}))
 
 		err := c.Delete(1)
 
@@ -379,7 +379,7 @@ func TestDefaultClient_Delete(t *testing.T) {
 
 func TestDefaultClient_Release(t *testing.T) {
 	t.Run("released / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"release 1 0 10\r\n"}, []string{"RELEASED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"release 1 0 10\r\n"}, []string{"RELEASED\r\n"}))
 
 		err := c.Release(1, 0, 10*time.Second)
 
@@ -389,7 +389,7 @@ func TestDefaultClient_Release(t *testing.T) {
 	})
 
 	t.Run("buried", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"release 1 999 600\r\n"}, []string{"BURIED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"release 1 999 600\r\n"}, []string{"BURIED\r\n"}))
 
 		err := c.Release(1, 999, 10*time.Minute)
 
@@ -399,7 +399,7 @@ func TestDefaultClient_Release(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"release 1 10 600\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"release 1 10 600\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		err := c.Release(1, 10, 10*time.Minute)
 
@@ -409,7 +409,7 @@ func TestDefaultClient_Release(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"release 1 0 5\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"release 1 0 5\r\n"}, []string{"TEST\r\n"}))
 
 		err := c.Release(1, 0, 5*time.Second)
 
@@ -421,7 +421,7 @@ func TestDefaultClient_Release(t *testing.T) {
 
 func TestDefaultClient_Bury(t *testing.T) {
 	t.Run("buried / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"bury 1 10\r\n"}, []string{"BURIED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"bury 1 10\r\n"}, []string{"BURIED\r\n"}))
 
 		err := c.Bury(1, 10)
 
@@ -431,7 +431,7 @@ func TestDefaultClient_Bury(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"bury 999 0\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"bury 999 0\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		err := c.Bury(999, 0)
 
@@ -441,7 +441,7 @@ func TestDefaultClient_Bury(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"bury 1 0\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"bury 1 0\r\n"}, []string{"TEST\r\n"}))
 
 		err := c.Bury(1, 0)
 
@@ -453,7 +453,7 @@ func TestDefaultClient_Bury(t *testing.T) {
 
 func TestDefaultClient_Touch(t *testing.T) {
 	t.Run("touched / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"touch 1\r\n"}, []string{"TOUCHED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"touch 1\r\n"}, []string{"TOUCHED\r\n"}))
 
 		err := c.Touch(1)
 
@@ -463,7 +463,7 @@ func TestDefaultClient_Touch(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"touch 1\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"touch 1\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		err := c.Touch(1)
 
@@ -473,7 +473,7 @@ func TestDefaultClient_Touch(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"touch 1\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"touch 1\r\n"}, []string{"TEST\r\n"}))
 
 		err := c.Touch(1)
 
@@ -485,7 +485,7 @@ func TestDefaultClient_Touch(t *testing.T) {
 
 func TestDefaultClient_Watch(t *testing.T) {
 	t.Run("watching / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"watch test\r\n"}, []string{"WATCHING\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"watch test\r\n"}, []string{"WATCHING\r\n"}))
 
 		_, err := c.Watch("test")
 
@@ -495,7 +495,7 @@ func TestDefaultClient_Watch(t *testing.T) {
 	})
 
 	t.Run("watching / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"watch test\r\n"}, []string{"WATCHING test\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"watch test\r\n"}, []string{"WATCHING test\r\n"}))
 
 		_, err := c.Watch("test")
 
@@ -506,7 +506,7 @@ func TestDefaultClient_Watch(t *testing.T) {
 	})
 
 	t.Run("watching / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"watch test\r\n"}, []string{"WATCHING 1\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"watch test\r\n"}, []string{"WATCHING 1\r\n"}))
 
 		count, err := c.Watch("test")
 
@@ -517,7 +517,7 @@ func TestDefaultClient_Watch(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"watch test\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"watch test\r\n"}, []string{"TEST\r\n"}))
 
 		_, err := c.Watch("test")
 
@@ -529,7 +529,7 @@ func TestDefaultClient_Watch(t *testing.T) {
 
 func TestDefaultClient_Ignore(t *testing.T) {
 	t.Run("watching / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"WATCHING\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"WATCHING\r\n"}))
 
 		_, err := c.Ignore("test")
 
@@ -539,7 +539,7 @@ func TestDefaultClient_Ignore(t *testing.T) {
 	})
 
 	t.Run("watching / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"WATCHING test\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"WATCHING test\r\n"}))
 
 		_, err := c.Ignore("test")
 
@@ -550,7 +550,7 @@ func TestDefaultClient_Ignore(t *testing.T) {
 	})
 
 	t.Run("watching / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"WATCHING 1\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"WATCHING 1\r\n"}))
 
 		count, err := c.Ignore("test")
 
@@ -561,7 +561,7 @@ func TestDefaultClient_Ignore(t *testing.T) {
 	})
 
 	t.Run("not ignored", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"NOT_IGNORED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"NOT_IGNORED\r\n"}))
 
 		_, err := c.Ignore("test")
 
@@ -571,7 +571,7 @@ func TestDefaultClient_Ignore(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"ignore test\r\n"}, []string{"TEST\r\n"}))
 
 		_, err := c.Ignore("test")
 
@@ -583,7 +583,7 @@ func TestDefaultClient_Ignore(t *testing.T) {
 
 func TestDefaultClient_Peek(t *testing.T) {
 	t.Run("found / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"FOUND\r\n"}))
 
 		job, err := c.Peek(1)
 
@@ -594,7 +594,7 @@ func TestDefaultClient_Peek(t *testing.T) {
 	})
 
 	t.Run("found / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
 
 		job, err := c.Peek(1)
 
@@ -606,7 +606,7 @@ func TestDefaultClient_Peek(t *testing.T) {
 	})
 
 	t.Run("found / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"}))
 
 		job, err := c.Peek(1)
 
@@ -618,7 +618,7 @@ func TestDefaultClient_Peek(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		job, err := c.Peek(1)
 
@@ -629,7 +629,7 @@ func TestDefaultClient_Peek(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek 1\r\n"}, []string{"TEST\r\n"}))
 
 		job, err := c.Peek(1)
 
@@ -642,7 +642,7 @@ func TestDefaultClient_Peek(t *testing.T) {
 
 func TestDefaultClient_PeekReady(t *testing.T) {
 	t.Run("found / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"FOUND\r\n"}))
 
 		job, err := c.PeekReady()
 
@@ -653,7 +653,7 @@ func TestDefaultClient_PeekReady(t *testing.T) {
 	})
 
 	t.Run("found / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
 
 		job, err := c.PeekReady()
 
@@ -665,7 +665,7 @@ func TestDefaultClient_PeekReady(t *testing.T) {
 	})
 
 	t.Run("found / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"}))
 
 		job, err := c.PeekReady()
 
@@ -677,7 +677,7 @@ func TestDefaultClient_PeekReady(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		job, err := c.PeekReady()
 
@@ -688,7 +688,7 @@ func TestDefaultClient_PeekReady(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-ready\r\n"}, []string{"TEST\r\n"}))
 
 		job, err := c.PeekReady()
 
@@ -701,7 +701,7 @@ func TestDefaultClient_PeekReady(t *testing.T) {
 
 func TestDefaultClient_PeekDelayed(t *testing.T) {
 	t.Run("found / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"FOUND\r\n"}))
 
 		job, err := c.PeekDelayed()
 
@@ -712,7 +712,7 @@ func TestDefaultClient_PeekDelayed(t *testing.T) {
 	})
 
 	t.Run("found / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
 
 		job, err := c.PeekDelayed()
 
@@ -724,7 +724,7 @@ func TestDefaultClient_PeekDelayed(t *testing.T) {
 	})
 
 	t.Run("found / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"}))
 
 		job, err := c.PeekDelayed()
 
@@ -736,7 +736,7 @@ func TestDefaultClient_PeekDelayed(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		job, err := c.PeekDelayed()
 
@@ -747,7 +747,7 @@ func TestDefaultClient_PeekDelayed(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-delayed\r\n"}, []string{"TEST\r\n"}))
 
 		job, err := c.PeekDelayed()
 
@@ -760,7 +760,7 @@ func TestDefaultClient_PeekDelayed(t *testing.T) {
 
 func TestDefaultClient_PeekBuried(t *testing.T) {
 	t.Run("found / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"FOUND\r\n"}))
 
 		job, err := c.PeekBuried()
 
@@ -771,7 +771,7 @@ func TestDefaultClient_PeekBuried(t *testing.T) {
 	})
 
 	t.Run("found / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"FOUND test 4\r\ntest\r\n"}))
 
 		job, err := c.PeekBuried()
 
@@ -783,7 +783,7 @@ func TestDefaultClient_PeekBuried(t *testing.T) {
 	})
 
 	t.Run("found / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"FOUND 1 4\r\ntest\r\n"}))
 
 		job, err := c.PeekBuried()
 
@@ -795,7 +795,7 @@ func TestDefaultClient_PeekBuried(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		job, err := c.PeekBuried()
 
@@ -806,7 +806,7 @@ func TestDefaultClient_PeekBuried(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"peek-buried\r\n"}, []string{"TEST\r\n"}))
 
 		job, err := c.PeekBuried()
 
@@ -819,7 +819,7 @@ func TestDefaultClient_PeekBuried(t *testing.T) {
 
 func TestDefaultClient_Kick(t *testing.T) {
 	t.Run("kicked / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"kick 3\r\n"}, []string{"KICKED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"kick 3\r\n"}, []string{"KICKED\r\n"}))
 
 		_, err := c.Kick(3)
 
@@ -829,7 +829,7 @@ func TestDefaultClient_Kick(t *testing.T) {
 	})
 
 	t.Run("kicked / malformed response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"kick 5\r\n"}, []string{"KICKED test\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"kick 5\r\n"}, []string{"KICKED test\r\n"}))
 
 		_, err := c.Kick(5)
 
@@ -840,7 +840,7 @@ func TestDefaultClient_Kick(t *testing.T) {
 	})
 
 	t.Run("kicked / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"kick 1\r\n"}, []string{"KICKED 1\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"kick 1\r\n"}, []string{"KICKED 1\r\n"}))
 
 		count, err := c.Kick(1)
 
@@ -851,7 +851,7 @@ func TestDefaultClient_Kick(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"kick 10\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"kick 10\r\n"}, []string{"TEST\r\n"}))
 
 		_, err := c.Kick(10)
 
@@ -863,7 +863,7 @@ func TestDefaultClient_Kick(t *testing.T) {
 
 func TestDefaultClient_KickJob(t *testing.T) {
 	t.Run("kicked / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"kick-job 1\r\n"}, []string{"KICKED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"kick-job 1\r\n"}, []string{"KICKED\r\n"}))
 
 		err := c.KickJob(1)
 
@@ -873,7 +873,7 @@ func TestDefaultClient_KickJob(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"kick-job 1\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"kick-job 1\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		err := c.KickJob(1)
 
@@ -883,7 +883,7 @@ func TestDefaultClient_KickJob(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"kick-job 1\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"kick-job 1\r\n"}, []string{"TEST\r\n"}))
 
 		err := c.KickJob(1)
 
@@ -895,7 +895,7 @@ func TestDefaultClient_KickJob(t *testing.T) {
 
 func TestDefaultClient_StatsJob(t *testing.T) {
 	t.Run("ok / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn(
+		c := beanstalk.NewClient(mock.NewConn(
 			[]string{"stats-job 1\r\n"},
 			[]string{
 				"OK 148\r\n" +
@@ -940,7 +940,7 @@ func TestDefaultClient_StatsJob(t *testing.T) {
 	})
 
 	t.Run("ok / failure", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn(
+		c := beanstalk.NewClient(mock.NewConn(
 			[]string{"stats-job 1\r\n"},
 			[]string{
 				"OK 6\r\n" +
@@ -960,7 +960,7 @@ func TestDefaultClient_StatsJob(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats-job 1\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"stats-job 1\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		stats, err := c.StatsJob(1)
 
@@ -971,7 +971,7 @@ func TestDefaultClient_StatsJob(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats-job 1\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"stats-job 1\r\n"}, []string{"TEST\r\n"}))
 
 		stats, err := c.StatsJob(1)
 
@@ -984,7 +984,7 @@ func TestDefaultClient_StatsJob(t *testing.T) {
 
 func TestDefaultClient_StatsTube(t *testing.T) {
 	t.Run("ok / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn(
+		c := beanstalk.NewClient(mock.NewConn(
 			[]string{"stats-tube default\r\n"},
 			[]string{
 				"OK 268\r\n" +
@@ -1029,7 +1029,7 @@ func TestDefaultClient_StatsTube(t *testing.T) {
 	})
 
 	t.Run("ok / failure", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn(
+		c := beanstalk.NewClient(mock.NewConn(
 			[]string{"stats-tube test\r\n"},
 			[]string{
 				"OK 6\r\n" +
@@ -1049,7 +1049,7 @@ func TestDefaultClient_StatsTube(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats-tube test\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"stats-tube test\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		stats, err := c.StatsTube("test")
 
@@ -1060,7 +1060,7 @@ func TestDefaultClient_StatsTube(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats-tube test\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"stats-tube test\r\n"}, []string{"TEST\r\n"}))
 
 		stats, err := c.StatsTube("test")
 
@@ -1073,7 +1073,7 @@ func TestDefaultClient_StatsTube(t *testing.T) {
 
 func TestDefaultClient_Stats(t *testing.T) {
 	t.Run("ok / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn(
+		c := beanstalk.NewClient(mock.NewConn(
 			[]string{"stats\r\n"},
 			[]string{
 				"OK 874\r\n" +
@@ -1184,7 +1184,7 @@ func TestDefaultClient_Stats(t *testing.T) {
 	})
 
 	t.Run("ok / failure", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn(
+		c := beanstalk.NewClient(mock.NewConn(
 			[]string{"stats\r\n"},
 			[]string{
 				"OK 6\r\n" +
@@ -1204,7 +1204,7 @@ func TestDefaultClient_Stats(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"stats\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"stats\r\n"}, []string{"TEST\r\n"}))
 
 		stats, err := c.Stats()
 
@@ -1217,7 +1217,7 @@ func TestDefaultClient_Stats(t *testing.T) {
 
 func TestDefaultClient_ListTubes(t *testing.T) {
 	t.Run("ok / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"list-tubes\r\n"}, []string{"OK 21\r\n---\n- default\n- test\n\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"list-tubes\r\n"}, []string{"OK 21\r\n---\n- default\n- test\n\r\n"}))
 
 		tubes, err := c.ListTubes()
 
@@ -1230,7 +1230,7 @@ func TestDefaultClient_ListTubes(t *testing.T) {
 	})
 
 	t.Run("ok / failure", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn(
+		c := beanstalk.NewClient(mock.NewConn(
 			[]string{"list-tubes\r\n"},
 			[]string{
 				"OK 6\r\n" +
@@ -1249,7 +1249,7 @@ func TestDefaultClient_ListTubes(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"list-tubes\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"list-tubes\r\n"}, []string{"TEST\r\n"}))
 
 		_, err := c.ListTubes()
 
@@ -1261,7 +1261,7 @@ func TestDefaultClient_ListTubes(t *testing.T) {
 
 func TestDefaultClient_ListTubeUsed(t *testing.T) {
 	t.Run("using / unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"list-tube-used\r\n"}, []string{"USING\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"list-tube-used\r\n"}, []string{"USING\r\n"}))
 
 		_, err := c.ListTubeUsed()
 
@@ -1271,7 +1271,7 @@ func TestDefaultClient_ListTubeUsed(t *testing.T) {
 	})
 
 	t.Run("using / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"list-tube-used\r\n"}, []string{"USING test\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"list-tube-used\r\n"}, []string{"USING test\r\n"}))
 
 		tube, err := c.ListTubeUsed()
 
@@ -1282,7 +1282,7 @@ func TestDefaultClient_ListTubeUsed(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"list-tube-used\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"list-tube-used\r\n"}, []string{"TEST\r\n"}))
 
 		_, err := c.ListTubeUsed()
 
@@ -1294,7 +1294,7 @@ func TestDefaultClient_ListTubeUsed(t *testing.T) {
 
 func TestDefaultClient_ListTubesWatched(t *testing.T) {
 	t.Run("ok / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"list-tubes-watched\r\n"}, []string{"OK 14\r\n---\n- default\n\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"list-tubes-watched\r\n"}, []string{"OK 14\r\n---\n- default\n\r\n"}))
 
 		tubes, err := c.ListTubesWatched()
 
@@ -1305,7 +1305,7 @@ func TestDefaultClient_ListTubesWatched(t *testing.T) {
 	})
 
 	t.Run("ok / failure", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn(
+		c := beanstalk.NewClient(mock.NewConn(
 			[]string{"list-tubes-watched\r\n"},
 			[]string{
 				"OK 6\r\n" +
@@ -1324,7 +1324,7 @@ func TestDefaultClient_ListTubesWatched(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"list-tubes-watched\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"list-tubes-watched\r\n"}, []string{"TEST\r\n"}))
 
 		_, err := c.ListTubesWatched()
 
@@ -1336,7 +1336,7 @@ func TestDefaultClient_ListTubesWatched(t *testing.T) {
 
 func TestDefaultClient_PauseTube(t *testing.T) {
 	t.Run("paused / success", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"pause-tube test 60\r\n"}, []string{"PAUSED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"pause-tube test 60\r\n"}, []string{"PAUSED\r\n"}))
 
 		err := c.PauseTube("test", 60*time.Second)
 
@@ -1346,7 +1346,7 @@ func TestDefaultClient_PauseTube(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"pause-tube test 10\r\n"}, []string{"NOT_FOUND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"pause-tube test 10\r\n"}, []string{"NOT_FOUND\r\n"}))
 
 		err := c.PauseTube("test", 10*time.Second)
 
@@ -1356,7 +1356,7 @@ func TestDefaultClient_PauseTube(t *testing.T) {
 	})
 
 	t.Run("unexpected response", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"pause-tube test 0\r\n"}, []string{"TEST\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"pause-tube test 0\r\n"}, []string{"TEST\r\n"}))
 
 		err := c.PauseTube("test", 0)
 
@@ -1368,7 +1368,7 @@ func TestDefaultClient_PauseTube(t *testing.T) {
 
 func TestDefaultClient_ExecuteCommand(t *testing.T) {
 	t.Run("write failure", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn(nil, nil))
+		c := beanstalk.NewClient(mock.NewConn(nil, nil))
 
 		_, err := c.ExecuteCommand(mockCommand{})
 
@@ -1378,7 +1378,7 @@ func TestDefaultClient_ExecuteCommand(t *testing.T) {
 	})
 
 	t.Run("read failure", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"mock\r\n"}, nil))
+		c := beanstalk.NewClient(mock.NewConn([]string{"mock\r\n"}, nil))
 
 		_, err := c.ExecuteCommand(mockCommand{})
 
@@ -1388,7 +1388,7 @@ func TestDefaultClient_ExecuteCommand(t *testing.T) {
 	})
 
 	t.Run("out of memory", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"mock\r\n"}, []string{"OUT_OF_MEMORY\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"mock\r\n"}, []string{"OUT_OF_MEMORY\r\n"}))
 
 		_, err := c.ExecuteCommand(mockCommand{})
 
@@ -1398,7 +1398,7 @@ func TestDefaultClient_ExecuteCommand(t *testing.T) {
 	})
 
 	t.Run("internal error", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"mock\r\n"}, []string{"INTERNAL_ERROR\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"mock\r\n"}, []string{"INTERNAL_ERROR\r\n"}))
 
 		_, err := c.ExecuteCommand(mockCommand{})
 
@@ -1408,7 +1408,7 @@ func TestDefaultClient_ExecuteCommand(t *testing.T) {
 	})
 
 	t.Run("bad format", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"mock\r\n"}, []string{"BAD_FORMAT\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"mock\r\n"}, []string{"BAD_FORMAT\r\n"}))
 
 		_, err := c.ExecuteCommand(mockCommand{})
 
@@ -1418,7 +1418,7 @@ func TestDefaultClient_ExecuteCommand(t *testing.T) {
 	})
 
 	t.Run("unknown command", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"mock\r\n"}, []string{"UNKNOWN_COMMAND\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"mock\r\n"}, []string{"UNKNOWN_COMMAND\r\n"}))
 
 		_, err := c.ExecuteCommand(mockCommand{})
 
@@ -1428,7 +1428,7 @@ func TestDefaultClient_ExecuteCommand(t *testing.T) {
 	})
 
 	t.Run("malformed command", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"mock\r\n"}, []string{"MALFORMED\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"mock\r\n"}, []string{"MALFORMED\r\n"}))
 
 		_, err := c.ExecuteCommand(mockCommand{})
 
@@ -1438,7 +1438,7 @@ func TestDefaultClient_ExecuteCommand(t *testing.T) {
 	})
 
 	t.Run("use", func(t *testing.T) {
-		c := beanstalk.NewDefaultClient(mock.NewConn([]string{"mock\r\n"}, []string{"OK\r\n"}))
+		c := beanstalk.NewClient(mock.NewConn([]string{"mock\r\n"}, []string{"OK\r\n"}))
 
 		require.Equal(t, int64(0), c.UsedAt().Unix())
 

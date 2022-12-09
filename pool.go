@@ -13,35 +13,26 @@ var (
 	ErrAlreadyOpenedPool  = errors.New("beanstalk: pool: already opened")
 	ErrClosedPool         = errors.New("beanstalk: pool: closed")
 	ErrDialerNotSpecified = errors.New("beanstalk: pool: dialer not specified")
-	ErrIllegalClient      = errors.New("beanstalk: pool: illegal client")
 )
 
-type Pool interface {
-	Open(ctx context.Context) error
-	Close(ctx context.Context) error
-	Get() (Client, error)
-	Put(client Client) error
-	Len() int
-}
-
 type PoolOptions struct {
-	Dialer      func() (*DefaultClient, error)
+	Dialer      func() (*Client, error)
 	Logger      Logger
 	Capacity    int
 	MaxAge      time.Duration
 	IdleTimeout time.Duration
 }
 
-type DefaultPool struct {
+type Pool struct {
 	options   *PoolOptions
-	clients   []*DefaultClient
+	clients   []*Client
 	triggerCh chan struct{}
 	closeCh   chan struct{}
 	closed    int32
 	mutex     sync.RWMutex
 }
 
-func NewDefaultPool(options *PoolOptions) *DefaultPool {
+func NewDefaultPool(options *PoolOptions) *Pool {
 	if options.Logger == nil {
 		options.Logger = NopLogger
 	}
@@ -58,16 +49,16 @@ func NewDefaultPool(options *PoolOptions) *DefaultPool {
 		options.IdleTimeout = 0
 	}
 
-	return &DefaultPool{
+	return &Pool{
 		options:   options,
-		clients:   make([]*DefaultClient, 0, options.Capacity),
+		clients:   make([]*Client, 0, options.Capacity),
 		triggerCh: make(chan struct{}),
 		closeCh:   make(chan struct{}),
 		closed:    1,
 	}
 }
 
-func (p *DefaultPool) Open(ctx context.Context) error {
+func (p *Pool) Open(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&p.closed, 1, 0) {
 		return ErrAlreadyOpenedPool
 	}
@@ -104,7 +95,7 @@ func (p *DefaultPool) Open(ctx context.Context) error {
 	}
 }
 
-func (p *DefaultPool) Close(ctx context.Context) error {
+func (p *Pool) Close(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&p.closed, 0, 1) {
 		return ErrClosedPool
 	}
@@ -138,7 +129,7 @@ func (p *DefaultPool) Close(ctx context.Context) error {
 	}
 }
 
-func (p *DefaultPool) Get() (Client, error) {
+func (p *Pool) Get() (*Client, error) {
 	if p.isClosed() {
 		return nil, ErrClosedPool
 	}
@@ -177,24 +168,17 @@ func (p *DefaultPool) Get() (Client, error) {
 	return p.createClient()
 }
 
-func (p *DefaultPool) Put(client Client) error {
+func (p *Pool) Put(client *Client) error {
 	if p.isClosed() {
 		return ErrClosedPool
 	}
 
 	p.options.Logger.Log(DebugLogLevel, "Tries to return client", nil)
 
-	defaultClient, ok := client.(*DefaultClient)
-	if !ok {
-		p.options.Logger.Log(DebugLogLevel, "Failed to return client", map[string]interface{}{"error": ErrIllegalClient})
-
-		return ErrIllegalClient
-	}
-
-	if p.Len() >= p.options.Capacity || !p.checkClient(defaultClient) {
+	if p.Len() >= p.options.Capacity || !p.checkClient(client) {
 		p.options.Logger.Log(DebugLogLevel, "Closes stale client", nil)
 
-		if err := defaultClient.Close(); err != nil {
+		if err := client.Close(); err != nil {
 			p.options.Logger.Log(ErrorLogLevel, "Failed to close client", map[string]interface{}{"error": err})
 		}
 
@@ -202,7 +186,7 @@ func (p *DefaultPool) Put(client Client) error {
 	}
 
 	p.mutex.Lock()
-	p.clients = append(p.clients, defaultClient)
+	p.clients = append(p.clients, client)
 	p.mutex.Unlock()
 
 	p.options.Logger.Log(DebugLogLevel, "Client was returned", nil)
@@ -210,18 +194,18 @@ func (p *DefaultPool) Put(client Client) error {
 	return nil
 }
 
-func (p *DefaultPool) Len() int {
+func (p *Pool) Len() int {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
 	return len(p.clients)
 }
 
-func (p *DefaultPool) isClosed() bool {
+func (p *Pool) isClosed() bool {
 	return atomic.LoadInt32(&p.closed) == 1
 }
 
-func (p *DefaultPool) refillClients() {
+func (p *Pool) refillClients() {
 	ticker := time.NewTicker(60 * time.Second)
 
 	defer ticker.Stop()
@@ -251,7 +235,7 @@ func (p *DefaultPool) refillClients() {
 	}
 }
 
-func (p *DefaultPool) createClient() (*DefaultClient, error) {
+func (p *Pool) createClient() (*Client, error) {
 	if p.options.Dialer == nil {
 		return nil, ErrDialerNotSpecified
 	}
@@ -259,7 +243,7 @@ func (p *DefaultPool) createClient() (*DefaultClient, error) {
 	return p.options.Dialer()
 }
 
-func (p *DefaultPool) createAndPutClient() {
+func (p *Pool) createAndPutClient() {
 	client, err := p.createClient()
 	if err != nil {
 		p.options.Logger.Log(ErrorLogLevel, "Failed to create client", map[string]interface{}{"error": err})
@@ -285,7 +269,7 @@ func (p *DefaultPool) createAndPutClient() {
 	p.clients = append(p.clients, client)
 }
 
-func (p *DefaultPool) checkClient(client *DefaultClient) bool {
+func (p *Pool) checkClient(client *Client) bool {
 	now := time.Now()
 
 	if p.options.MaxAge > 0 && now.Sub(client.CreatedAt()) >= p.options.MaxAge {
