@@ -1,10 +1,11 @@
 package mock_test
 
 import (
-	"github.com/IvanLutokhin/go-beanstalk/mock"
-	"github.com/stretchr/testify/require"
 	"io"
 	"testing"
+
+	"github.com/artiifact/go-beanstalk/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConn_Read(t *testing.T) {

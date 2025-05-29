@@ -1,12 +1,13 @@
 package beanstalk_test
 
 import (
-	"github.com/IvanLutokhin/go-beanstalk"
-	"github.com/IvanLutokhin/go-beanstalk/mock"
-	"github.com/stretchr/testify/require"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/artiifact/go-beanstalk"
+	"github.com/artiifact/go-beanstalk/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewClient(t *testing.T) {

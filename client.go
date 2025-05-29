@@ -1,8 +1,6 @@
 package beanstalk
 
 import (
-	"github.com/IvanLutokhin/go-beanstalk/checker"
-	"gopkg.in/yaml.v2"
 	"io"
 	"net"
 	"net/textproto"
@@ -10,6 +8,9 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/artiifact/go-beanstalk/checker"
+	"gopkg.in/yaml.v2"
 )
 
 var crnl = []byte{'\r', '\n'}
