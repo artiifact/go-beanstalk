@@ -1,4 +1,4 @@
-module github.com/IvanLutokhin/go-beanstalk
+module github.com/artiifact/go-beanstalk
 
 go 1.16
 
