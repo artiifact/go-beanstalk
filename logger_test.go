@@ -1,9 +1,10 @@
 package beanstalk_test
 
 import (
-	"github.com/IvanLutokhin/go-beanstalk"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/artiifact/go-beanstalk"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLogLevel_String(t *testing.T) {

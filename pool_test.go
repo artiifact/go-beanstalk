@@ -2,11 +2,12 @@ package beanstalk_test
 
 import (
 	"context"
-	"github.com/IvanLutokhin/go-beanstalk"
-	"github.com/IvanLutokhin/go-beanstalk/mock"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/artiifact/go-beanstalk"
+	"github.com/artiifact/go-beanstalk/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewDefaultPool(t *testing.T) {
